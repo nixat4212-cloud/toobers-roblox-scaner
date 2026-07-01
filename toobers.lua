@@ -1,25 +1,33 @@
--- // TOOBERS ULTIMATE EXPLOIT TOOL v6 // --
--- // С ЭФФЕКТОМ "ЖИДКОЕ СТЕКЛО" + ВСЕ ФУНКЦИИ // --
+-- // TOOBERS ULTIMATE EXPLOIT TOOL v6 (FIXED) // --
+-- // ПОЛНОСТЬЮ РАБОЧАЯ ВЕРСИЯ ДЛЯ GITHUB // --
 
 local Players = game:GetService("Players")
 local player = Players.LocalPlayer
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local LogService = game:GetService("LogService")
+local CoreGui = game:GetService("CoreGui")
+
+-- ===== УДАЛЯЕМ СТАРЫЙ GUI =====
+if CoreGui:FindFirstChild("ToobersTool") then
+    CoreGui:FindFirstChild("ToobersTool"):Destroy()
+end
 
 -- ===== GUI =====
 local screenGui = Instance.new("ScreenGui")
 screenGui.Name = "ToobersTool"
-screenGui.Parent = player.PlayerGui
+screenGui.Parent = CoreGui
 screenGui.ResetOnSpawn = false
+screenGui.Enabled = true
 
 local frame = Instance.new("Frame")
 frame.Size = UDim2.new(0, 700, 0, 550)
 frame.Position = UDim2.new(0.5, -350, 0.5, -275)
 frame.BackgroundColor3 = Color3.fromRGB(25, 25, 40)
-frame.BackgroundTransparency = 0.25
+frame.BackgroundTransparency = 0.2
 frame.BorderSizePixel = 0
 frame.Parent = screenGui
 
+-- Тень
 local shadow = Instance.new("Frame")
 shadow.Size = UDim2.new(1, 10, 1, 10)
 shadow.Position = UDim2.new(0, -5, 0, -5)
@@ -29,8 +37,9 @@ shadow.BorderSizePixel = 0
 shadow.Parent = frame
 shadow.ZIndex = -1
 
+-- Заголовок
 local title = Instance.new("TextLabel")
-title.Size = UDim2.new(1, 0, 0.05, 0)
+title.Size = UDim2.new(1, 0, 0.06, 0)
 title.BackgroundColor3 = Color3.fromRGB(40, 40, 60)
 title.BackgroundTransparency = 0.3
 title.Text = "🛠 TOOBERS EXPLOIT TOOL v6"
@@ -39,16 +48,18 @@ title.TextScaled = true
 title.Font = Enum.Font.GothamBold
 title.Parent = frame
 
+-- Кнопка сворачивания
 local toggleBtn = Instance.new("ImageButton")
 toggleBtn.Size = UDim2.new(0, 30, 0, 30)
-toggleBtn.Position = UDim2.new(1, -35, 0, 2)
+toggleBtn.Position = UDim2.new(1, -35, 0, 3)
 toggleBtn.BackgroundTransparency = 1
 toggleBtn.Image = "rbxassetid://6072924773"
 toggleBtn.Parent = title
 
+-- Вкладки
 local tabFrame = Instance.new("Frame")
 tabFrame.Size = UDim2.new(1, 0, 0.06, 0)
-tabFrame.Position = UDim2.new(0, 0, 0.05, 0)
+tabFrame.Position = UDim2.new(0, 0, 0.06, 0)
 tabFrame.BackgroundTransparency = 1
 tabFrame.Parent = frame
 
@@ -77,13 +88,14 @@ for i, name in ipairs(tabs) do
     end)
 end
 
+-- ===== КОНТЕНТ =====
 local content = Instance.new("Frame")
 content.Size = UDim2.new(1, 0, 0.75, 0)
-content.Position = UDim2.new(0, 0, 0.11, 0)
+content.Position = UDim2.new(0, 0, 0.12, 0)
 content.BackgroundTransparency = 1
 content.Parent = frame
 
--- ===== СНИФФЕР =====
+-- 1. СНИФФЕР
 local sniffFrame = Instance.new("ScrollingFrame")
 sniffFrame.Size = UDim2.new(1, 0, 1, 0)
 sniffFrame.BackgroundColor3 = Color3.fromRGB(8, 8, 18)
@@ -96,10 +108,12 @@ local sniffText = Instance.new("TextLabel")
 sniffText.Size = UDim2.new(1, -10, 1, -10)
 sniffText.Position = UDim2.new(0, 5, 0, 5)
 sniffText.BackgroundTransparency = 1
-sniffText.Text = "⏳ Сниффер активен..."
+sniffText.Text = "⏳ Сниффер активен...\n"
 sniffText.TextColor3 = Color3.fromRGB(180, 180, 200)
 sniffText.TextWrapped = true
+sniffText.TextScaled = false
 sniffText.Font = Enum.Font.Gotham
+sniffText.TextXAlignment = Enum.TextXAlignment.Left
 sniffText.Parent = sniffFrame
 
 local function logSniff(msg, color)
@@ -122,7 +136,7 @@ local function startSniffer()
 end
 startSniffer()
 
--- ===== СКАНЕР =====
+-- 2. СКАНЕР
 local scanFrame = Instance.new("Frame")
 scanFrame.Size = UDim2.new(1, 0, 1, 0)
 scanFrame.BackgroundTransparency = 1
@@ -186,7 +200,7 @@ scanBtn.MouseButton1Click:Connect(function()
     logScan("\n✅ Найдено: " .. #foundVulns .. " уязвимостей", Color3.fromRGB(100, 255, 100))
 end)
 
--- ===== ОТПРАВКА ТЕКСТА =====
+-- 3. ОТПРАВИТЬ
 local sendFrame = Instance.new("Frame")
 sendFrame.Size = UDim2.new(1, 0, 1, 0)
 sendFrame.BackgroundTransparency = 1
@@ -229,7 +243,7 @@ sendBtn.MouseButton1Click:Connect(function()
     logSniff("📤 Отправлено: " .. msg, Color3.fromRGB(100, 255, 100))
 end)
 
--- ===== КОНСОЛЬ (Lua) =====
+-- 4. КОНСОЛЬ
 local consoleFrame = Instance.new("Frame")
 consoleFrame.Size = UDim2.new(1, 0, 1, 0)
 consoleFrame.BackgroundTransparency = 1
@@ -264,6 +278,7 @@ consoleText.BackgroundTransparency = 1
 consoleText.Text = "> Добро пожаловать в консоль!\n> Вводи код и нажимай Enter\n"
 consoleText.TextColor3 = Color3.fromRGB(100, 255, 100)
 consoleText.TextWrapped = true
+consoleText.TextScaled = false
 consoleText.Font = Enum.Font.Gotham
 consoleText.TextXAlignment = Enum.TextXAlignment.Left
 consoleText.Parent = consoleOutput
@@ -290,7 +305,7 @@ consoleInput.FocusLost:Connect(function(enterPressed)
     end
 end)
 
--- ===== ЛОГИ ROBLOX =====
+-- 5. ЛОГИ ROBLOX
 local logsFrame = Instance.new("ScrollingFrame")
 logsFrame.Size = UDim2.new(1, 0, 1, 0)
 logsFrame.BackgroundColor3 = Color3.fromRGB(8, 8, 18)
@@ -307,6 +322,7 @@ logsText.BackgroundTransparency = 1
 logsText.Text = "⏳ Ожидание логов Roblox...\n"
 logsText.TextColor3 = Color3.fromRGB(200, 200, 200)
 logsText.TextWrapped = true
+logsText.TextScaled = false
 logsText.Font = Enum.Font.Gotham
 logsText.TextXAlignment = Enum.TextXAlignment.Left
 logsText.Parent = logsFrame
@@ -358,4 +374,4 @@ toggleBtn.MouseButton1Click:Connect(function()
     end
 end)
 
-print("[TOOBERS] ИНСТРУМЕНТ ЗАГРУЖЕН. ВСЕ ФУНКЦИИ АКТИВНЫ.")
+print("[TOOBERS] ИНСТРУМЕНТ ЗАГРУЖЕН И ГОТОВ К РАБОТЕ!")
