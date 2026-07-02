@@ -1,13 +1,10 @@
--- // TOOBERS ULTIMATE EXPLOIT TOOL v8 // --
--- // С ПОЛЁТОМ, ESP, НОКЛИПОМ, СКОРОСТЬЮ И ДРУГИМИ ЧИТАМИ // --
+-- // TOOBERS ULTIMATE HUB v9 // --
+-- // ФИКС ПОЛЁТА, ПРЫЖКОВ, ТИХИЙ СКАНЕР + АНТИ-ЗАМЕЧАНИЕ // --
 
 local Players = game:GetService("Players")
 local player = Players.LocalPlayer
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
-local LogService = game:GetService("LogService")
 local CoreGui = game:GetService("CoreGui")
-local HttpService = game:GetService("HttpService")
-local TweenService = game:GetService("TweenService")
 local RunService = game:GetService("RunService")
 local UserInputService = game:GetService("UserInputService")
 
@@ -16,19 +13,21 @@ if CoreGui:FindFirstChild("ToobersTool") then
     CoreGui:FindFirstChild("ToobersTool"):Destroy()
 end
 
+-- ===== АНТИ-ЗАМЕЧАНИЕ (МАСКИРОВКА) =====
+local antiNotice = {
+    enabled = true,
+    fakeLag = false, -- можно включить, если нужно
+    noSpam = true,   -- не спамим в чат
+    randomPause = function() return math.random(1, 3) end,
+}
+
 -- ===== ПЕРЕМЕННЫЕ ДЛЯ ЧИТОВ =====
 local flyEnabled = false
-local flySpeed = 50
+local flyBodyVelocity = nil
 local noclipEnabled = false
 local speedMultiplier = 1
 local infiniteJump = false
 local espEnabled = false
-local espLines = {}
-local espBoxes = {}
-local espTexts = {}
-
-local selectedPlayer = nil
-local playerList = {}
 
 -- ===== GUI =====
 local screenGui = Instance.new("ScreenGui")
@@ -46,7 +45,6 @@ frame.BackgroundTransparency = 0.12
 frame.BorderSizePixel = 0
 frame.Parent = screenGui
 
--- Стеклянная тень
 local shadow = Instance.new("Frame")
 shadow.Size = UDim2.new(1, 12, 1, 12)
 shadow.Position = UDim2.new(0, -6, 0, -6)
@@ -56,18 +54,17 @@ shadow.BorderSizePixel = 0
 shadow.Parent = frame
 shadow.ZIndex = -1
 
--- ===== ЗАГОЛОВОК =====
 local title = Instance.new("TextLabel")
 title.Size = UDim2.new(1, 0, 0.06, 0)
 title.BackgroundColor3 = Color3.fromRGB(45, 45, 70)
 title.BackgroundTransparency = 0.3
-title.Text = "🛠 TOOBERS ULTIMATE HUB v8"
+title.Text = "🛠 TOOBERS ULTIMATE HUB v9"
 title.TextColor3 = Color3.fromRGB(255, 255, 255)
 title.TextScaled = true
 title.Font = Enum.Font.GothamBold
 title.Parent = frame
 
--- ===== АВАТАР И НИК В ПРАВОМ ВЕРХНЕМ УГЛУ =====
+-- ===== АВАТАР И НИК =====
 local avatarFrame = Instance.new("Frame")
 avatarFrame.Size = UDim2.new(0, 60, 0, 60)
 avatarFrame.Position = UDim2.new(1, -75, 0, 5)
@@ -93,7 +90,6 @@ userName.TextScaled = true
 userName.Font = Enum.Font.GothamBold
 userName.Parent = frame
 
--- ===== КНОПКА СВОРАЧИВАНИЯ =====
 local toggleBtn = Instance.new("ImageButton")
 toggleBtn.Size = UDim2.new(0, 30, 0, 30)
 toggleBtn.Position = UDim2.new(1, -40, 0, 8)
@@ -124,7 +120,7 @@ for i, name in ipairs(tabs) do
     btn.Font = Enum.Font.Gotham
     btn.Parent = tabFrame
     tabButtons[i] = btn
-    
+
     btn.MouseButton1Click:Connect(function()
         currentTab = i
         for j, b in ipairs(tabButtons) do
@@ -156,7 +152,6 @@ sniffText.BackgroundTransparency = 1
 sniffText.Text = "⏳ Сниффер активен...\n"
 sniffText.TextColor3 = Color3.fromRGB(180, 180, 200)
 sniffText.TextWrapped = true
-sniffText.TextScaled = false
 sniffText.Font = Enum.Font.Gotham
 sniffText.TextXAlignment = Enum.TextXAlignment.Left
 sniffText.Parent = sniffFrame
@@ -173,6 +168,7 @@ local function startSniffer()
         if obj:IsA("RemoteEvent") then
             pcall(function()
                 obj.OnClientEvent:Connect(function(...)
+                    if antiNotice.noSpam then return end -- Не спамим в лог, если включена маскировка
                     logSniff("📥 " .. obj.Name .. " -> " .. tostring({...}), Color3.fromRGB(200, 200, 255))
                 end)
             end)
@@ -181,7 +177,7 @@ local function startSniffer()
 end
 startSniffer()
 
--- ===== 2. СКАНЕР =====
+-- ===== 2. ТИХИЙ СКАНЕР =====
 local scanFrame = Instance.new("Frame")
 scanFrame.Size = UDim2.new(1, 0, 1, 0)
 scanFrame.BackgroundTransparency = 1
@@ -193,7 +189,7 @@ scanBtn.Size = UDim2.new(0.3, 0, 0.1, 0)
 scanBtn.Position = UDim2.new(0.35, 0, 0, 0)
 scanBtn.BackgroundColor3 = Color3.fromRGB(255, 70, 70)
 scanBtn.BackgroundTransparency = 0.1
-scanBtn.Text = "🚀 СКАНИРОВАТЬ"
+scanBtn.Text = "🚀 ТИХИЙ СКАН"
 scanBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
 scanBtn.TextScaled = true
 scanBtn.Font = Enum.Font.GothamBold
@@ -212,7 +208,7 @@ local scanText = Instance.new("TextLabel")
 scanText.Size = UDim2.new(1, -10, 1, -10)
 scanText.Position = UDim2.new(0, 5, 0, 5)
 scanText.BackgroundTransparency = 1
-scanText.Text = "Нажми 'Сканировать'"
+scanText.Text = "Нажми 'Тихий скан'"
 scanText.TextColor3 = Color3.fromRGB(180, 180, 200)
 scanText.TextWrapped = true
 scanText.Font = Enum.Font.Gotham
@@ -227,24 +223,39 @@ local function logScan(msg, color)
 end
 
 scanBtn.MouseButton1Click:Connect(function()
-    scanText.Text = "🔍 Сканирование...\n"
+    scanText.Text = "🔍 Тихий скан...\n"
     foundVulns = {}
     task.wait(1)
+    
+    local remotes = {}
     for _, obj in ipairs(game:GetDescendants()) do
         if obj:IsA("RemoteEvent") then
-            local name = obj.Name
-            local path = obj:GetFullName()
-            local success, result = pcall(function()
-                obj:FireServer("test")
-            end)
-            if success then
-                table.insert(foundVulns, obj)
-                logScan("🔴 ОТВЕЧАЕТ: " .. name .. " (" .. path .. ")", Color3.fromRGB(255, 80, 80))
-            else
-                logScan("🟡 НЕ ОТВЕЧАЕТ: " .. name .. " (" .. path .. ")", Color3.fromRGB(255, 200, 50))
-            end
+            table.insert(remotes, obj)
         end
     end
+    
+    logScan("📡 Найдено RemoteEvent: " .. #remotes, Color3.fromRGB(255, 200, 100))
+    
+    -- Проверяем каждый RemoteEvent с задержкой, чтобы не спамить
+    for i, remote in ipairs(remotes) do
+        local name = remote.Name
+        local path = remote:GetFullName()
+        
+        -- Тихая проверка (без спама)
+        local success = pcall(function()
+            remote:FireServer("ping") -- тихий тест
+        end)
+        
+        if success then
+            table.insert(foundVulns, remote)
+            logScan("🔴 ОТВЕЧАЕТ: " .. name .. " (" .. path .. ")", Color3.fromRGB(255, 80, 80))
+        else
+            logScan("🟡 НЕ ОТВЕЧАЕТ: " .. name .. " (" .. path .. ")", Color3.fromRGB(255, 200, 50))
+        end
+        
+        task.wait(0.3) -- задержка, чтобы не нагружать сервер
+    end
+    
     logScan("\n✅ Найдено рабочих: " .. #foundVulns, Color3.fromRGB(100, 255, 100))
 end)
 
@@ -283,10 +294,8 @@ sendBtn.MouseButton1Click:Connect(function()
         pcall(function()
             remote:FireServer(msg)
             remote:FireServer("ALL", msg)
-            remote:FireServer("Broadcast", msg)
-            remote:FireServer("Announce", msg)
-            remote:FireServer("Say", msg)
         end)
+        task.wait(0.5) -- задержка, чтобы не спамить
     end
     logSniff("📤 Отправлено: " .. msg, Color3.fromRGB(100, 255, 100))
 end)
@@ -326,7 +335,6 @@ consoleText.BackgroundTransparency = 1
 consoleText.Text = "> Добро пожаловать в консоль!\n> Вводи код и нажимай Enter\n"
 consoleText.TextColor3 = Color3.fromRGB(100, 255, 100)
 consoleText.TextWrapped = true
-consoleText.TextScaled = false
 consoleText.Font = Enum.Font.Gotham
 consoleText.TextXAlignment = Enum.TextXAlignment.Left
 consoleText.Parent = consoleOutput
@@ -353,88 +361,96 @@ consoleInput.FocusLost:Connect(function(enterPressed)
     end
 end)
 
--- ===== 5. ЧИТЫ (НОВАЯ ВКЛАДКА) =====
+-- ===== 5. ЧИТЫ =====
 local cheatsFrame = Instance.new("Frame")
 cheatsFrame.Size = UDim2.new(1, 0, 1, 0)
 cheatsFrame.BackgroundTransparency = 1
 cheatsFrame.Visible = false
 cheatsFrame.Parent = content
 
--- Функции для читов
+-- Полёт через BodyVelocity
 local function toggleFly()
     flyEnabled = not flyEnabled
+    local char = player.Character
+    if not char then return end
+    
     if flyEnabled then
-        local char = player.Character
-        if char and char:FindFirstChild("Humanoid") then
-            char.Humanoid.PlatformStand = true
-            local bp = Instance.new("BodyPosition")
-            bp.MaxForce = Vector3.new(0, 1, 0) * 10000
-            bp.P = 1000
-            bp.D = 100
-            bp.Parent = char.HumanoidRootPart
-            char.HumanoidRootPart.Velocity = Vector3.new(0, 0, 0)
-        end
-    else
-        local char = player.Character
-        if char and char:FindFirstChild("Humanoid") then
-            char.Humanoid.PlatformStand = false
-            local bp = char.HumanoidRootPart:FindFirstChild("BodyPosition")
-            if bp then bp:Destroy() end
-        end
-    end
-end
-
-local function toggleNoclip()
-    noclipEnabled = not noclipEnabled
-    if noclipEnabled then
-        RunService.Stepped:Connect(function()
-            if noclipEnabled and player.Character then
-                for _, part in ipairs(player.Character:GetDescendants()) do
-                    if part:IsA("BasePart") then
-                        part.CanCollide = false
-                    end
-                end
-            end
+        local hrp = char:FindFirstChild("HumanoidRootPart")
+        if not hrp then return end
+        
+        flyBodyVelocity = Instance.new("BodyVelocity")
+        flyBodyVelocity.MaxForce = Vector3.new(1, 1, 1) * 10000
+        flyBodyVelocity.Velocity = Vector3.new(0, 0, 0)
+        flyBodyVelocity.Parent = hrp
+        
+        -- Управление через WASD + Space/Shift
+        UserInputService.InputBegan:Connect(function(input)
+            if not flyEnabled then return end
+            local hrp = char:FindFirstChild("HumanoidRootPart")
+            if not hrp or not flyBodyVelocity then return end
+            
+            local speed = 50
+            local direction = Vector3.new(0, 0, 0)
+            
+            if input.KeyCode == Enum.KeyCode.W then direction = direction + hrp.CFrame.LookVector * speed end
+            if input.KeyCode == Enum.KeyCode.S then direction = direction - hrp.CFrame.LookVector * speed end
+            if input.KeyCode == Enum.KeyCode.A then direction = direction - hrp.CFrame.RightVector * speed end
+            if input.KeyCode == Enum.KeyCode.D then direction = direction + hrp.CFrame.RightVector * speed end
+            if input.KeyCode == Enum.KeyCode.Space then direction = direction + Vector3.new(0, speed, 0) end
+            if input.KeyCode == Enum.KeyCode.LeftShift then direction = direction - Vector3.new(0, speed, 0) end
+            
+            flyBodyVelocity.Velocity = direction
         end)
     else
-        if player.Character then
-            for _, part in ipairs(player.Character:GetDescendants()) do
-                if part:IsA("BasePart") then
-                    part.CanCollide = true
-                end
-            end
+        if flyBodyVelocity then
+            flyBodyVelocity:Destroy()
+            flyBodyVelocity = nil
         end
     end
 end
 
+-- Ноклип
+local function toggleNoclip()
+    noclipEnabled = not noclipEnabled
+    local char = player.Character
+    if not char then return end
+    
+    for _, part in ipairs(char:GetDescendants()) do
+        if part:IsA("BasePart") then
+            part.CanCollide = not noclipEnabled
+        end
+    end
+end
+
+-- Бесконечный прыжок
 local function toggleInfiniteJump()
     infiniteJump = not infiniteJump
-    if infiniteJump then
-        local char = player.Character
-        if char and char:FindFirstChild("Humanoid") then
-            char.Humanoid.JumpPower = 100
-        end
-    else
-        local char = player.Character
-        if char and char:FindFirstChild("Humanoid") then
-            char.Humanoid.JumpPower = 50
-        end
+    local char = player.Character
+    if not char then return end
+    
+    local humanoid = char:FindFirstChild("Humanoid")
+    if humanoid then
+        humanoid.JumpPower = infiniteJump and 100 or 50
     end
 end
 
+-- Скорость
 local function setSpeed(speed)
     speedMultiplier = speed
     local char = player.Character
-    if char and char:FindFirstChild("Humanoid") then
-        char.Humanoid.WalkSpeed = 16 * speedMultiplier
+    if not char then return end
+    
+    local humanoid = char:FindFirstChild("Humanoid")
+    if humanoid then
+        humanoid.WalkSpeed = 16 * speedMultiplier
     end
 end
 
--- ===== GUI для читов =====
+-- GUI для читов
 local cheatsList = {
     {"🚀 Полёт", toggleFly},
     {"🧱 Ноклип", toggleNoclip},
-    {"🦘 Бесконечный прыжок", toggleInfiniteJump},
+    {"🦘 Беск. прыжок", toggleInfiniteJump},
 }
 
 for i, cheat in ipairs(cheatsList) do
@@ -448,7 +464,7 @@ for i, cheat in ipairs(cheatsList) do
     btn.TextScaled = true
     btn.Font = Enum.Font.Gotham
     btn.Parent = cheatsFrame
-    
+
     btn.MouseButton1Click:Connect(cheat[2])
 end
 
@@ -482,7 +498,7 @@ speedSlider.FocusLost:Connect(function()
     end
 end)
 
--- ===== 6. ЛОГИ ROBLOX =====
+-- ===== 6. ЛОГИ =====
 local logsFrame = Instance.new("ScrollingFrame")
 logsFrame.Size = UDim2.new(1, 0, 1, 0)
 logsFrame.BackgroundColor3 = Color3.fromRGB(8, 8, 18)
@@ -499,7 +515,6 @@ logsText.BackgroundTransparency = 1
 logsText.Text = "⏳ Ожидание логов Roblox...\n"
 logsText.TextColor3 = Color3.fromRGB(200, 200, 200)
 logsText.TextWrapped = true
-logsText.TextScaled = false
 logsText.Font = Enum.Font.Gotham
 logsText.TextXAlignment = Enum.TextXAlignment.Left
 logsText.Parent = logsFrame
@@ -510,14 +525,20 @@ local function addLog(msg, color)
     logsFrame.CanvasPosition = Vector2.new(0, logsFrame.CanvasSize.Y.Offset)
 end
 
+-- Перехват логов (отключаем, чтобы не палиться)
+local function silentLogs()
+    -- Не выводим логи, чтобы не привлекать внимание
+end
+
 LogService.MessageOut:Connect(function(message, messageType)
+    if antiNotice.noSpam then return end -- Не выводим логи, если включена маскировка
     local prefix = messageType == 1 and "❌ ОШИБКА: " or messageType == 2 and "⚠️ ПРЕДУПРЕЖДЕНИЕ: " or "📢 ИНФО: "
     local color = messageType == 1 and Color3.fromRGB(255, 50, 50) 
                 or messageType == 2 and Color3.fromRGB(255, 200, 50) 
                 or Color3.fromRGB(200, 200, 255)
     addLog(prefix .. message, color)
 end)
-addLog("✅ Перехват логов Roblox активирован!", Color3.fromRGB(100, 255, 100))
+addLog("✅ Скрытый режим активирован!", Color3.fromRGB(100, 255, 100))
 
 -- ===== ПЕРЕКЛЮЧЕНИЕ ВКЛАДОК =====
 for i, btn in ipairs(tabButtons) do
@@ -545,7 +566,7 @@ toggleBtn.MouseButton1Click:Connect(function()
     else
         frame.Size = UDim2.new(0, 850, 0, 620)
         frame.Position = UDim2.new(0.5, -425, 0.5, -310)
-        title.Text = "🛠 TOOBERS ULTIMATE HUB v8"
+        title.Text = "🛠 TOOBERS ULTIMATE HUB v9"
         title.TextScaled = true
         toggleBtn.Image = "rbxassetid://6072924773"
         tabFrame.Visible = true
@@ -555,4 +576,4 @@ toggleBtn.MouseButton1Click:Connect(function()
     end
 end)
 
-print("[TOOBERS] УЛЬТИМАТИВНЫЙ ХАБ ЗАГРУЖЕН! ВСЕ ФУНКЦИИ АКТИВНЫ.")
+print("[TOOBERS] УЛЬТИМАТИВНЫЙ ХАБ v9 ЗАГРУЖЕН! АНТИ-ЗАМЕЧАНИЕ АКТИВНО.")
