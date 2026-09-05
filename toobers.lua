@@ -1,5 +1,5 @@
--- WIA HUB :: ESP + Tracers + Flight :: whitewia/tordark
--- Optimized, fixed head ESP, purple theme, draggable, LCTRL hide
+-- WIA HUB :: ESP + Tracers + Flight + Noclip :: whitewia/tordark
+-- Optimized, head ESP, purple theme, draggable, LCTRL hide
 
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
@@ -7,11 +7,13 @@ local UserInputService = game:GetService("UserInputService")
 local LocalPlayer = Players.LocalPlayer
 local Camera = workspace.CurrentCamera
 
--- Flight variables
+-- Flight & Noclip variables
 local flightEnabled = false
+local noclipEnabled = false
 local flySpeed = 50
 local bodyVelocity = nil
 local bodyGyro = nil
+local noclipConnection = nil
 
 -- GUI (CoreGui)
 local ScreenGui = Instance.new("ScreenGui")
@@ -19,7 +21,7 @@ ScreenGui.Name = "WiaHubGUI"
 ScreenGui.Parent = game:GetService("CoreGui")
 
 local Frame = Instance.new("Frame")
-Frame.Size = UDim2.new(0, 240, 0, 130)
+Frame.Size = UDim2.new(0, 280, 0, 130)
 Frame.Position = UDim2.new(0, 10, 0, 10)
 Frame.BackgroundColor3 = Color3.fromRGB(15, 15, 25)
 Frame.BackgroundTransparency = 0.5
@@ -69,9 +71,9 @@ UserInputService.InputBegan:Connect(function(input, gameProcessed)
     end
 end)
 
--- Buttons
+-- Buttons (reorganized)
 local EspToggle = Instance.new("TextButton")
-EspToggle.Size = UDim2.new(0, 70, 0, 25)
+EspToggle.Size = UDim2.new(0, 60, 0, 25)
 EspToggle.Position = UDim2.new(0, 5, 0, 25)
 EspToggle.Text = "ESP: ON"
 EspToggle.TextColor3 = Color3.fromRGB(255,255,255)
@@ -79,20 +81,28 @@ EspToggle.BackgroundColor3 = Color3.fromRGB(40,40,50)
 EspToggle.Parent = Frame
 
 local TracersToggle = Instance.new("TextButton")
-TracersToggle.Size = UDim2.new(0, 70, 0, 25)
-TracersToggle.Position = UDim2.new(0, 80, 0, 25)
+TracersToggle.Size = UDim2.new(0, 60, 0, 25)
+TracersToggle.Position = UDim2.new(0, 70, 0, 25)
 TracersToggle.Text = "TR: ON"
 TracersToggle.TextColor3 = Color3.fromRGB(255,255,255)
 TracersToggle.BackgroundColor3 = Color3.fromRGB(40,40,50)
 TracersToggle.Parent = Frame
 
 local FlightToggle = Instance.new("TextButton")
-FlightToggle.Size = UDim2.new(0, 70, 0, 25)
-FlightToggle.Position = UDim2.new(0, 155, 0, 25)
+FlightToggle.Size = UDim2.new(0, 60, 0, 25)
+FlightToggle.Position = UDim2.new(0, 135, 0, 25)
 FlightToggle.Text = "FLY: OFF"
 FlightToggle.TextColor3 = Color3.fromRGB(255,255,255)
 FlightToggle.BackgroundColor3 = Color3.fromRGB(40,40,50)
 FlightToggle.Parent = Frame
+
+local NoclipToggle = Instance.new("TextButton")
+NoclipToggle.Size = UDim2.new(0, 60, 0, 25)
+NoclipToggle.Position = UDim2.new(0, 200, 0, 25)
+NoclipToggle.Text = "NC: OFF"
+NoclipToggle.TextColor3 = Color3.fromRGB(255,255,255)
+NoclipToggle.BackgroundColor3 = Color3.fromRGB(40,40,50)
+NoclipToggle.Parent = Frame
 
 -- Speed slider
 local SpeedLabel = Instance.new("TextLabel")
@@ -158,6 +168,42 @@ FlightToggle.MouseButton1Click:Connect(function()
     end
 end)
 
+-- Noclip toggle
+NoclipToggle.MouseButton1Click:Connect(function()
+    noclipEnabled = not noclipEnabled
+    NoclipToggle.Text = noclipEnabled and "NC: ON" or "NC: OFF"
+    
+    if noclipEnabled then
+        -- Start noclip loop
+        if noclipConnection then noclipConnection:Disconnect() end
+        noclipConnection = RunService.Heartbeat:Connect(function()
+            if not noclipEnabled then return end
+            local char = LocalPlayer.Character
+            if char then
+                for _, part in ipairs(char:GetDescendants()) do
+                    if part:IsA("BasePart") then
+                        part.CanCollide = false
+                    end
+                end
+            end
+        end)
+    else
+        if noclipConnection then
+            noclipConnection:Disconnect()
+            noclipConnection = nil
+        end
+        -- Reset collision
+        local char = LocalPlayer.Character
+        if char then
+            for _, part in ipairs(char:GetDescendants()) do
+                if part:IsA("BasePart") then
+                    part.CanCollide = true
+                end
+            end
+        end
+    end
+end)
+
 -- Flight update (optimized)
 RunService.Heartbeat:Connect(function()
     if not flightEnabled then return end
@@ -195,6 +241,7 @@ end)
 
 -- Cleanup on death
 LocalPlayer.CharacterAdded:Connect(function()
+    -- Reapply flight
     if flightEnabled then
         task.wait(0.5)
         local char = LocalPlayer.Character
@@ -209,6 +256,19 @@ LocalPlayer.CharacterAdded:Connect(function()
                 bodyGyro.MaxTorque = Vector3.new(1e6, 1e6, 1e6)
                 bodyGyro.CFrame = char.HumanoidRootPart.CFrame
                 bodyGyro.Parent = char.HumanoidRootPart
+            end
+        end
+    end
+    
+    -- Reapply noclip
+    if noclipEnabled then
+        task.wait(0.3)
+        local char = LocalPlayer.Character
+        if char then
+            for _, part in ipairs(char:GetDescendants()) do
+                if part:IsA("BasePart") then
+                    part.CanCollide = false
+                end
             end
         end
     end
