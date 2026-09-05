@@ -52,8 +52,12 @@ local antiAFKConnection = nil
 local mm2ModeEnabled = false
 local mm2HighlightConnections = {}
 local mm2Highlights = {}
+local mm2SilentAimEnabled = false
+local mm2AutoPickupEnabled = false
+local mm2FakeHeadlessEnabled = false
+local mm2FakeCorbbloxEnabled = false
 
--- GUI (CoreGui)
+-- GUI (CoreGui) - MAIN
 local ScreenGui = Instance.new("ScreenGui")
 ScreenGui.Name = "WiaHubGUI"
 ScreenGui.Parent = game:GetService("CoreGui")
@@ -67,7 +71,152 @@ MainFrame.BorderSizePixel = 0
 MainFrame.ClipsDescendants = true
 MainFrame.Parent = ScreenGui
 
--- Title
+-- MM2 SECONDARY GUI (Hidden by default)
+local MM2Gui = Instance.new("ScreenGui")
+MM2Gui.Name = "WiaMM2GUI"
+MM2Gui.Parent = game:GetService("CoreGui")
+MM2Gui.Enabled = false
+
+local MM2Frame = Instance.new("Frame")
+MM2Frame.Size = UDim2.new(0, 300, 0, 220)
+MM2Frame.Position = UDim2.new(0, 360, 0, 10)
+MM2Frame.BackgroundColor3 = Color3.fromRGB(10, 10, 30)
+MM2Frame.BackgroundTransparency = 0.8
+MM2Frame.BorderSizePixel = 1
+MM2Frame.BorderColor3 = Color3.fromRGB(180, 0, 255)
+MM2Frame.Parent = MM2Gui
+
+local MM2Title = Instance.new("TextLabel")
+MM2Title.Size = UDim2.new(1, 0, 0, 25)
+MM2Title.Position = UDim2.new(0, 0, 0, 0)
+MM2Title.Text = "MM2 HUB"
+MM2Title.TextColor3 = Color3.fromRGB(180, 0, 255)
+MM2Title.TextScaled = true
+MM2Title.BackgroundTransparency = 1
+MM2Title.Font = Enum.Font.GothamBold
+MM2Title.Parent = MM2Frame
+
+-- MM2 Draggable
+local mm2Dragging = false
+local mm2DragStart, mm2StartPos
+
+MM2Frame.InputBegan:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.MouseButton1 then
+        mm2Dragging = true
+        mm2DragStart = input.Position
+        mm2StartPos = MM2Frame.Position
+    end
+end)
+
+UserInputService.InputChanged:Connect(function(input)
+    if mm2Dragging and input.UserInputType == Enum.UserInputType.MouseMovement then
+        local delta = input.Position - mm2DragStart
+        MM2Frame.Position = UDim2.new(mm2StartPos.X.Scale, mm2StartPos.X.Offset + delta.X, mm2StartPos.Y.Scale, mm2StartPos.Y.Offset + delta.Y)
+    end
+end)
+
+UserInputService.InputEnded:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.MouseButton1 then
+        mm2Dragging = false
+    end
+end)
+
+-- MM2 TUMBLERS
+local function createMM2Tumbler(labelText, x, y, parent, defaultState)
+    local container = Instance.new("Frame")
+    container.Size = UDim2.new(0, 150, 0, 28)
+    container.Position = UDim2.new(0, x, 0, y)
+    container.BackgroundTransparency = 1
+    container.Parent = parent
+
+    local label = Instance.new("TextLabel")
+    label.Size = UDim2.new(0, 70, 0, 28)
+    label.Position = UDim2.new(0, 0, 0, 0)
+    label.Text = labelText
+    label.TextColor3 = Color3.fromRGB(255,255,255)
+    label.TextScaled = true
+    label.BackgroundTransparency = 1
+    label.Font = Enum.Font.Gotham
+    label.TextXAlignment = Enum.TextXAlignment.Left
+    label.Parent = container
+
+    local bg = Instance.new("Frame")
+    bg.Size = UDim2.new(0, 50, 0, 22)
+    bg.Position = UDim2.new(0, 75, 0, 3)
+    bg.BackgroundColor3 = Color3.fromRGB(60, 60, 70)
+    bg.BorderSizePixel = 0
+    bg.Parent = container
+
+    local knob = Instance.new("Frame")
+    knob.Size = UDim2.new(0, 18, 0, 18)
+    knob.Position = UDim2.new(0, 2, 0, 2)
+    knob.BackgroundColor3 = Color3.fromRGB(200, 200, 200)
+    knob.BorderSizePixel = 0
+    knob.Parent = bg
+
+    local state = defaultState or false
+
+    local function updateTumbler()
+        if state then
+            bg.BackgroundColor3 = Color3.fromRGB(100, 200, 100)
+            knob.Position = UDim2.new(0, 30, 0, 2)
+            knob.BackgroundColor3 = Color3.fromRGB(255,255,255)
+        else
+            bg.BackgroundColor3 = Color3.fromRGB(60, 60, 70)
+            knob.Position = UDim2.new(0, 2, 0, 2)
+            knob.BackgroundColor3 = Color3.fromRGB(200, 200, 200)
+        end
+    end
+
+    updateTumbler()
+
+    local btn = Instance.new("TextButton")
+    btn.Size = UDim2.new(1, 0, 1, 0)
+    btn.BackgroundTransparency = 1
+    btn.Parent = container
+
+    local toggleEvent = Instance.new("BindableEvent")
+    btn.MouseButton1Click:Connect(function()
+        state = not state
+        updateTumbler()
+        toggleEvent:Fire(state)
+    end)
+
+    return {
+        container = container,
+        bg = bg,
+        knob = knob,
+        getState = function() return state end,
+        setState = function(newState)
+            state = newState
+            updateTumbler()
+            toggleEvent:Fire(state)
+        end,
+        onToggle = function(callback)
+            toggleEvent.Event:Connect(callback)
+        end
+    }
+end
+
+-- MM2 Wallhack (always shows murderer/sheriff)
+local mm2WHTumbler = createMM2Tumbler("Wallhack", 10, 30, MM2Frame, true)
+local mm2SilentAimTumbler = createMM2Tumbler("Silent Aim", 10, 65, MM2Frame, false)
+local mm2AutoPickupTumbler = createMM2Tumbler("Auto Pickup", 10, 100, MM2Frame, false)
+local mm2FakeHeadlessTumbler = createMM2Tumbler("Fake Headless", 10, 135, MM2Frame, false)
+local mm2FakeCorbbloxTumbler = createMM2Tumbler("Fake Corblox", 10, 170, MM2Frame, false)
+
+-- MM2 Status
+local MM2Status = Instance.new("TextLabel")
+MM2Status.Size = UDim2.new(1, -20, 0, 20)
+MM2Status.Position = UDim2.new(0, 10, 0, 200)
+MM2Status.Text = "MM2 Ready"
+MM2Status.TextColor3 = Color3.fromRGB(150, 150, 180)
+MM2Status.TextScaled = true
+MM2Status.BackgroundTransparency = 1
+MM2Status.Font = Enum.Font.Gotham
+MM2Status.Parent = MM2Frame
+
+-- MAIN GUI Title
 local Title = Instance.new("TextLabel")
 Title.Size = UDim2.new(1, 0, 0, 30)
 Title.Position = UDim2.new(0, 0, 0, 0)
@@ -269,7 +418,7 @@ local trTumbler = createTumbler("Tracers", 10, 40, Container, true)
 local flyTumbler = createTumbler("Flight", 10, 75, Container, false)
 -- ROW 4: Noclip
 local ncTumbler = createTumbler("Noclip", 10, 110, Container, false)
--- ROW 5: Noclip Force Mode
+-- ROW 5: Noclip Force
 local ncForceTumbler = createTumbler("Noclip Force", 10, 145, Container, false)
 -- ROW 6: Wallhack
 local whTumbler = createTumbler("Wallhack", 10, 180, Container, false)
@@ -423,7 +572,6 @@ local function enableNoclipForce()
         local root = char:FindFirstChild("HumanoidRootPart")
         if not root then return end
         
-        -- Force move through walls using CFrame
         local moveDirection = Vector3.new(0, 0, 0)
         local forward = Camera.CFrame.LookVector
         local right = Camera.CFrame.RightVector
@@ -519,26 +667,13 @@ local function clearMM2Highlights()
     mm2Highlights = {}
 end
 
-local function applyMM2Highlight(char, color, label)
+local function applyMM2Highlight(char)
     if not char or not mm2ModeEnabled then return end
     local old = char:FindFirstChild("WIA_MM2")
     if old then old:Destroy() end
 
-    -- Check if player has a tool (weapon)
-    local hasWeapon = false
-    for _, child in pairs(char:GetChildren()) do
-        if child:IsA("Tool") then
-            hasWeapon = true
-            break
-        end
-    end
-
-    -- If no weapon -> innocent (green), if weapon -> sheriff/innocent? Actually in MM2:
-    -- Sheriff has a gun, murderer has a knife, innocent has nothing
-    -- We'll use different colors: murderer = red, sheriff = blue, innocent = green
     local highlightColor = Color3.fromRGB(0, 255, 0) -- innocent default
     
-    -- Check for specific weapons
     for _, child in pairs(char:GetChildren()) do
         if child:IsA("Tool") then
             local toolName = child.Name:lower()
@@ -555,7 +690,7 @@ local function applyMM2Highlight(char, color, label)
     local highlight = Instance.new("Highlight")
     highlight.Name = "WIA_MM2"
     highlight.FillColor = highlightColor
-    highlight.FillTransparency = 0.3
+    highlight.FillTransparency = 0.2
     highlight.OutlineColor = Color3.fromRGB(255, 255, 255)
     highlight.OutlineTransparency = 0.1
     highlight.DepthMode = Enum.HighlightDepthMode.AlwaysOnTop
@@ -575,6 +710,169 @@ local function updateMM2()
         end
     end
 end
+
+-- MM2 WALLHACK (constant highlight)
+local function updateMM2Wallhack()
+    if not mm2ModeEnabled then return end
+    for _, plr in pairs(Players:GetPlayers()) do
+        if plr ~= LocalPlayer and plr.Character then
+            local highlight = plr.Character:FindFirstChild("WIA_MM2")
+            if highlight then
+                -- Always visible through walls
+                highlight.DepthMode = Enum.HighlightDepthMode.AlwaysOnTop
+            end
+        end
+    end
+end
+
+-- MM2 SILENT AIM
+local function enableSilentAim()
+    -- Silent aim: redirect shots to nearest murderer
+    local function getNearestMurderer()
+        local nearest = nil
+        local minDist = math.huge
+        local localPos = LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart")
+        if not localPos then return nil end
+        
+        for _, plr in pairs(Players:GetPlayers()) do
+            if plr ~= LocalPlayer and plr.Character then
+                local isMurderer = false
+                for _, child in pairs(plr.Character:GetChildren()) do
+                    if child:IsA("Tool") then
+                        local name = child.Name:lower()
+                        if name:find("knife") or name:find("murder") then
+                            isMurderer = true
+                            break
+                        end
+                    end
+                end
+                if isMurderer then
+                    local root = plr.Character:FindFirstChild("HumanoidRootPart")
+                    if root then
+                        local dist = (root.Position - localPos.Position).Magnitude
+                        if dist < minDist then
+                            minDist = dist
+                            nearest = plr
+                        end
+                    end
+                end
+            end
+        end
+        return nearest
+    end
+    
+    -- Hook mouse click
+    local originalClick = UserInputService.InputBegan
+    UserInputService.InputBegan:Connect(function(input, gameProcessed)
+        if not mm2SilentAimEnabled then return end
+        if gameProcessed then return end
+        if input.UserInputType == Enum.UserInputType.MouseButton1 then
+            local target = getNearestMurderer()
+            if target and target.Character then
+                local head = target.Character:FindFirstChild("Head")
+                if head then
+                    -- Redirect camera to target
+                    Camera.CFrame = CFrame.new(Camera.CFrame.Position, head.Position)
+                end
+            end
+        end
+    end)
+end
+
+-- MM2 AUTO PICKUP
+local function enableAutoPickup()
+    local function checkPickup()
+        if not mm2AutoPickupEnabled then return end
+        local char = LocalPlayer.Character
+        if not char then return end
+        
+        -- Check for weapons on ground
+        for _, obj in pairs(workspace:GetDescendants()) do
+            if obj:IsA("Tool") and obj.Parent == workspace then
+                local distance = (obj.Position - char.HumanoidRootPart.Position).Magnitude
+                if distance < 15 then
+                    -- Move to pickup
+                    local root = char.HumanoidRootPart
+                    root.CFrame = CFrame.new(obj.Position + Vector3.new(0, 3, 0))
+                    task.wait(0.1)
+                    -- Pickup
+                    local hum = char:FindFirstChild("Humanoid")
+                    if hum then
+                        hum:EquipTool(obj)
+                    end
+                end
+            end
+        end
+    end
+    
+    RunService.Heartbeat:Connect(function()
+        if mm2AutoPickupEnabled then
+            checkPickup()
+        end
+    end)
+end
+
+-- MM2 FAKE HEADLESS
+local function enableFakeHeadless()
+    if not mm2FakeHeadlessEnabled then return end
+    local char = LocalPlayer.Character
+    if char then
+        local head = char:FindFirstChild("Head")
+        if head then
+            head.Transparency = 1
+        end
+    end
+end
+
+-- MM2 FAKE CORBLOX
+local function enableFakeCorbblox()
+    if not mm2FakeCorbbloxEnabled then return end
+    -- Fake Corblox effect: change torso size
+    local char = LocalPlayer.Character
+    if char then
+        local torso = char:FindFirstChild("UpperTorso") or char:FindFirstChild("Torso")
+        if torso then
+            torso.Size = Vector3.new(4, 4, 4)
+            torso.Transparency = 0.5
+        end
+    end
+end
+
+-- MM2 TUMBLER EVENTS
+mm2WHTumbler.onToggle(function(state)
+    MM2Status.Text = state and "Wallhack ON" or "Wallhack OFF"
+    if state then
+        updateMM2Wallhack()
+    end
+end)
+
+mm2SilentAimTumbler.onToggle(function(state)
+    mm2SilentAimEnabled = state
+    MM2Status.Text = state and "Silent Aim ON" or "Silent Aim OFF"
+    if state then
+        enableSilentAim()
+    end
+end)
+
+mm2AutoPickupTumbler.onToggle(function(state)
+    mm2AutoPickupEnabled = state
+    MM2Status.Text = state and "Auto Pickup ON" or "Auto Pickup OFF"
+    if state then
+        enableAutoPickup()
+    end
+end)
+
+mm2FakeHeadlessTumbler.onToggle(function(state)
+    mm2FakeHeadlessEnabled = state
+    MM2Status.Text = state and "Fake Headless ON" or "Fake Headless OFF"
+    enableFakeHeadless()
+end)
+
+mm2FakeCorbbloxTumbler.onToggle(function(state)
+    mm2FakeCorbbloxEnabled = state
+    MM2Status.Text = state and "Fake Corblox ON" or "Fake Corblox OFF"
+    enableFakeCorbblox()
+end)
 
 -- TUMBLER EVENTS
 espTumbler.onToggle(function(state)
@@ -638,7 +936,6 @@ ncTumbler.onToggle(function(state)
             end
         end)
 
-        -- Enable force mode if it's on
         if noclipForceMode then
             enableNoclipForce()
         end
@@ -806,20 +1103,6 @@ infJumpTumbler.onToggle(function(state)
     setStatus(state and "Infinite Jump ON" or "Infinite Jump OFF", state and Color3.fromRGB(0, 255, 255) or nil)
 
     if state then
-        -- Override jump
-        local function handleJump()
-            if not infiniteJumpEnabled then return end
-            local char = LocalPlayer.Character
-            if char then
-                local humanoid = char:FindFirstChild("Humanoid")
-                if humanoid then
-                    -- Force jump power every frame
-                    humanoid.JumpPower = 50
-                end
-            end
-        end
-        
-        -- Connect to jump event
         UserInputService.InputBegan:Connect(function(input, gameProcessed)
             if not infiniteJumpEnabled then return end
             if gameProcessed then return end
@@ -839,7 +1122,8 @@ end)
 -- MM2 MODE
 mm2Tumbler.onToggle(function(state)
     mm2ModeEnabled = state
-    setStatus(state and "MM2 Mode ON - Red=Murd, Blue=Sheriff, Green=Innocent" or "MM2 Mode OFF", state and Color3.fromRGB(255, 0, 255) or nil)
+    MM2Gui.Enabled = state
+    setStatus(state and "MM2 Mode ON - Secondary GUI opened" or "MM2 Mode OFF", state and Color3.fromRGB(255, 0, 255) or nil)
 
     if state then
         clearMM2Highlights()
@@ -871,7 +1155,6 @@ mm2Tumbler.onToggle(function(state)
                 if plr ~= LocalPlayer and plr.Character then
                     local highlight = plr.Character:FindFirstChild("WIA_MM2")
                     if highlight then
-                        -- Update color based on current weapons
                         local hasWeapon = false
                         local isMurderer = false
                         local isSheriff = false
