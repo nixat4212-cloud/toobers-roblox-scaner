@@ -1,6 +1,4 @@
--- WIA HUB :: FULL GUI + PLAYER LIST + TELEPORT :: whitewia/tordark
--- REMOVED: Fake Fruit
--- ADDED: Player List with Teleport
+-- WIA HUB :: FULL GUI + PLAYER LIST + ANTI-VOID + FULLBRIGHT + FOV + HITBOX + AUTOCLICKER + CHAT SPAM + BHOP + ANTI-FALL :: whitewia/tordark
 
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
@@ -8,6 +6,8 @@ local UserInputService = game:GetService("UserInputService")
 local LocalPlayer = Players.LocalPlayer
 local Camera = workspace.CurrentCamera
 local Mouse = LocalPlayer:GetMouse()
+local Lighting = game:GetService("Lighting")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 -- Flight & Noclip variables
 local flightEnabled = false
@@ -56,13 +56,52 @@ local playerListFrame = nil
 local playerListScrollingFrame = nil
 local playerButtons = {}
 
+-- Anti-Void variables
+local antiVoidEnabled = false
+local antiVoidConnection = nil
+local spawnPosition = nil
+
+-- FullBright variables
+local fullBrightEnabled = false
+local originalBrightness = nil
+local originalAmbient = nil
+
+-- FOV variables
+local fovEnabled = false
+local fovValue = 90
+local originalFOV = 70
+
+-- Hitbox variables
+local hitboxEnabled = false
+local hitboxConnection = nil
+local hitboxSize = 5
+
+-- AutoClicker variables
+local autoClickerEnabled = false
+local autoClickerDelay = 100
+local autoClickerConnection = nil
+
+-- Chat Spam variables
+local chatSpamEnabled = false
+local chatSpamMessage = "WIA HUB"
+local chatSpamDelay = 5
+local chatSpamConnection = nil
+
+-- Bhop variables
+local bhopEnabled = false
+local bhopConnection = nil
+
+-- Anti-Fall Damage variables
+local antiFallEnabled = false
+local antiFallConnection = nil
+
 -- GUI (CoreGui) - MAIN
 local ScreenGui = Instance.new("ScreenGui")
 ScreenGui.Name = "WiaHubGUI"
 ScreenGui.Parent = game:GetService("CoreGui")
 
 local MainFrame = Instance.new("Frame")
-MainFrame.Size = UDim2.new(0, 340, 0, 460)
+MainFrame.Size = UDim2.new(0, 340, 0, 650)
 MainFrame.Position = UDim2.new(0, 10, 0, 10)
 MainFrame.BackgroundColor3 = Color3.fromRGB(10, 10, 20)
 MainFrame.BackgroundTransparency = 0.7
@@ -74,7 +113,7 @@ MainFrame.Parent = ScreenGui
 local Title = Instance.new("TextLabel")
 Title.Size = UDim2.new(1, 0, 0, 30)
 Title.Position = UDim2.new(0, 0, 0, 0)
-Title.Text = "WIA HUB v5"
+Title.Text = "WIA HUB v6"
 Title.TextColor3 = Color3.fromRGB(180, 0, 255)
 Title.TextScaled = true
 Title.BackgroundTransparency = 1
@@ -338,7 +377,6 @@ end
 
 -- PLAYER LIST FUNCTIONS
 local function updatePlayerList()
-    -- Clear old buttons
     for _, btn in pairs(playerButtons) do
         btn:Destroy()
     end
@@ -360,7 +398,6 @@ local function updatePlayerList()
             btn.TextScaled = true
             btn.Parent = PlayerListContainer
             
-            -- Hover effect
             btn.MouseEnter:Connect(function()
                 btn.BackgroundColor3 = Color3.fromRGB(80,0,120)
             end)
@@ -368,7 +405,6 @@ local function updatePlayerList()
                 btn.BackgroundColor3 = Color3.fromRGB(40,40,55)
             end)
             
-            -- Teleport on click
             btn.MouseButton1Click:Connect(function()
                 local char = plr.Character
                 if char then
@@ -382,7 +418,6 @@ local function updatePlayerList()
                                 myRoot.CFrame = CFrame.new(playerPos + Vector3.new(0, 3, 0))
                                 setStatus("Teleported to " .. plr.Name, Color3.fromRGB(0,255,150))
                                 
-                                -- Visual effect
                                 local part = Instance.new("Part")
                                 part.Size = Vector3.new(2, 0.5, 2)
                                 part.Position = playerPos
@@ -406,9 +441,218 @@ local function updatePlayerList()
         end
     end
     
-    -- Update container size
     PlayerListContainer.Size = UDim2.new(1, 0, 0, y + 5)
     playerListScrollingFrame.CanvasSize = UDim2.new(0, 0, 0, y + 10)
+end
+
+-- ANTI-VOID
+local function toggleAntiVoid(state)
+    antiVoidEnabled = state
+    if state then
+        if antiVoidConnection then antiVoidConnection:Disconnect() end
+        antiVoidConnection = RunService.Heartbeat:Connect(function()
+            if not antiVoidEnabled then return end
+            local char = LocalPlayer.Character
+            if char then
+                local root = char:FindFirstChild("HumanoidRootPart")
+                if root and root.Position.Y < -50 then
+                    local spawn = game:GetService("Workspace"):FindFirstChild("SpawnLocation")
+                    if spawn then
+                        root.CFrame = spawn.CFrame + Vector3.new(0, 3, 0)
+                        setStatus("Anti-Void: Teleported to spawn!", Color3.fromRGB(255, 200, 0))
+                    end
+                end
+            end
+        end)
+    else
+        if antiVoidConnection then
+            antiVoidConnection:Disconnect()
+            antiVoidConnection = nil
+        end
+    end
+end
+
+-- FULLBRIGHT
+local function toggleFullBright(state)
+    fullBrightEnabled = state
+    if state then
+        originalBrightness = Lighting.Brightness
+        originalAmbient = Lighting.Ambient
+        Lighting.Brightness = 1
+        Lighting.Ambient = Color3.fromRGB(255, 255, 255)
+        Lighting.FogEnd = 100000
+    else
+        if originalBrightness then Lighting.Brightness = originalBrightness end
+        if originalAmbient then Lighting.Ambient = originalAmbient end
+        Lighting.FogEnd = 1000
+    end
+end
+
+-- FOV
+local function toggleFOV(state)
+    fovEnabled = state
+    if state then
+        originalFOV = Camera.FieldOfView
+        Camera.FieldOfView = fovValue
+    else
+        Camera.FieldOfView = originalFOV or 70
+    end
+end
+
+local function setFOV(val)
+    fovValue = val
+    if fovEnabled then
+        Camera.FieldOfView = val
+    end
+end
+
+-- HITBOX
+local function toggleHitbox(state)
+    hitboxEnabled = state
+    if state then
+        if hitboxConnection then hitboxConnection:Disconnect() end
+        hitboxConnection = RunService.RenderStepped:Connect(function()
+            if not hitboxEnabled then return end
+            local char = LocalPlayer.Character
+            if char then
+                for _, part in pairs(char:GetDescendants()) do
+                    if part:IsA("BasePart") and (part.Name == "Head" or part.Name == "UpperTorso" or part.Name == "LowerTorso" or part.Name == "Torso") then
+                        part.Size = Vector3.new(hitboxSize, hitboxSize, hitboxSize)
+                    end
+                end
+            end
+        end)
+    else
+        if hitboxConnection then
+            hitboxConnection:Disconnect()
+            hitboxConnection = nil
+        end
+        local char = LocalPlayer.Character
+        if char then
+            for _, part in pairs(char:GetDescendants()) do
+                if part:IsA("BasePart") and (part.Name == "Head" or part.Name == "UpperTorso" or part.Name == "LowerTorso" or part.Name == "Torso") then
+                    if part.Name == "Head" then part.Size = Vector3.new(2, 1, 1) end
+                    if part.Name == "UpperTorso" then part.Size = Vector3.new(2, 1.5, 1) end
+                    if part.Name == "LowerTorso" then part.Size = Vector3.new(1.5, 1.5, 1) end
+                    if part.Name == "Torso" then part.Size = Vector3.new(2, 1.5, 1) end
+                end
+            end
+        end
+    end
+end
+
+local function setHitboxSize(val)
+    hitboxSize = val
+    if hitboxEnabled then
+        local char = LocalPlayer.Character
+        if char then
+            for _, part in pairs(char:GetDescendants()) do
+                if part:IsA("BasePart") and (part.Name == "Head" or part.Name == "UpperTorso" or part.Name == "LowerTorso" or part.Name == "Torso") then
+                    part.Size = Vector3.new(val, val, val)
+                end
+            end
+        end
+    end
+end
+
+-- AUTOCLICKER
+local function toggleAutoClicker(state)
+    autoClickerEnabled = state
+    if state then
+        if autoClickerConnection then autoClickerConnection:Disconnect() end
+        autoClickerConnection = RunService.Heartbeat:Connect(function()
+            if not autoClickerEnabled then return end
+            mouse1click()
+            task.wait(autoClickerDelay / 1000)
+        end)
+    else
+        if autoClickerConnection then
+            autoClickerConnection:Disconnect()
+            autoClickerConnection = nil
+        end
+    end
+end
+
+local function setAutoClickerDelay(val)
+    autoClickerDelay = val
+end
+
+-- CHAT SPAM
+local function toggleChatSpam(state)
+    chatSpamEnabled = state
+    if state then
+        if chatSpamConnection then chatSpamConnection:Disconnect() end
+        chatSpamConnection = RunService.Heartbeat:Connect(function()
+            if not chatSpamEnabled then return end
+            if not chatSpamConnection.lastTime then
+                chatSpamConnection.lastTime = tick()
+            end
+            if tick() - chatSpamConnection.lastTime >= chatSpamDelay then
+                chatSpamConnection.lastTime = tick()
+                local args = {[1] = chatSpamMessage}
+                game:GetService("ReplicatedStorage"):FindFirstChild("DefaultChatSystemChatEvents"):FindFirstChild("SayMessageRequest"):FireServer(unpack(args))
+            end
+        end)
+    else
+        if chatSpamConnection then
+            chatSpamConnection:Disconnect()
+            chatSpamConnection = nil
+        end
+    end
+end
+
+local function setChatSpamMessage(val)
+    chatSpamMessage = val
+end
+
+local function setChatSpamDelay(val)
+    chatSpamDelay = val
+end
+
+-- BHOP
+local function toggleBhop(state)
+    bhopEnabled = state
+    if state then
+        if bhopConnection then bhopConnection:Disconnect() end
+        bhopConnection = RunService.Heartbeat:Connect(function()
+            if not bhopEnabled then return end
+            local char = LocalPlayer.Character
+            if char then
+                local humanoid = char:FindFirstChild("Humanoid")
+                if humanoid and humanoid.MoveDirection.Magnitude > 0 and humanoid.FloorMaterial ~= Enum.Material.Air then
+                    humanoid:ChangeState(Enum.HumanoidStateType.Jumping)
+                end
+            end
+        end)
+    else
+        if bhopConnection then
+            bhopConnection:Disconnect()
+            bhopConnection = nil
+        end
+    end
+end
+
+-- ANTI-FALL DAMAGE
+local function toggleAntiFall(state)
+    antiFallEnabled = state
+    if state then
+        if antiFallConnection then antiFallConnection:Disconnect() end
+        antiFallConnection = RunService.Heartbeat:Connect(function()
+            if not antiFallEnabled then return end
+            local char = LocalPlayer.Character
+            if char then
+                local humanoid = char:FindFirstChild("Humanoid")
+                if humanoid and humanoid:GetState() == Enum.HumanoidStateType.FallingDown then
+                    humanoid:ChangeState(Enum.HumanoidStateType.Landed)
+                end
+            end
+        end)
+    else
+        if antiFallConnection then
+            antiFallConnection:Disconnect()
+            antiFallConnection = nil
+        end
+    end
 end
 
 -- ROW 1: ESP
@@ -431,11 +675,25 @@ local godTumbler = createTumbler("Godmode", 10, 250, Container, false)
 local infJumpTumbler = createTumbler("Infinite Jump", 10, 285, Container, false)
 -- ROW 10: Player List
 local plTumbler = createTumbler("Player List", 10, 320, Container, false)
--- ROW 11: TP Tool
-local tpToolTumbler = createTumbler("TP Tool", 10, 355, Container, false)
+-- ROW 11: Anti-Void
+local avTumbler = createTumbler("Anti-Void", 10, 355, Container, false)
+-- ROW 12: FullBright
+local fbTumbler = createTumbler("FullBright", 10, 390, Container, false)
+-- ROW 13: Hitbox
+local hbTumbler = createTumbler("Hitbox", 10, 425, Container, false)
+-- ROW 14: AutoClicker
+local acTumbler = createTumbler("AutoClicker", 10, 460, Container, false)
+-- ROW 15: Chat Spam
+local csTumbler = createTumbler("Chat Spam", 10, 495, Container, false)
+-- ROW 16: Bhop
+local bhopTumbler = createTumbler("Bhop", 10, 530, Container, false)
+-- ROW 17: Anti-Fall
+local afallTumbler = createTumbler("Anti-Fall", 10, 565, Container, false)
+-- ROW 18: TP Tool
+local tpToolTumbler = createTumbler("TP Tool", 10, 600, Container, false)
 
 -- Speed Controls
-local wsSlider = createSlider("Walk Speed", 10, 390, Container, 10, 200, 16, function(val)
+local wsSlider = createSlider("Walk Speed", 10, 635, Container, 10, 200, 16, function(val)
     walkSpeedValue = val
     if walkSpeedEnabled then
         local char = LocalPlayer.Character
@@ -448,7 +706,7 @@ local wsSlider = createSlider("Walk Speed", 10, 390, Container, 10, 200, 16, fun
     end
 end)
 
-local jpSlider = createSlider("Jump Power", 10, 425, Container, 10, 200, 50, function(val)
+local jpSlider = createSlider("Jump Power", 10, 670, Container, 10, 200, 50, function(val)
     jumpPowerValue = val
     if jumpPowerEnabled then
         local char = LocalPlayer.Character
@@ -461,10 +719,15 @@ local jpSlider = createSlider("Jump Power", 10, 425, Container, 10, 200, 50, fun
     end
 end)
 
+-- FOV Slider
+local fovSlider = createSlider("FOV", 10, 705, Container, 50, 120, 70, function(val)
+    setFOV(val)
+end)
+
 -- Fly Speed
 local SpeedContainer = Instance.new("Frame")
 SpeedContainer.Size = UDim2.new(0, 160, 0, 30)
-SpeedContainer.Position = UDim2.new(0, 10, 0, 460)
+SpeedContainer.Position = UDim2.new(0, 10, 0, 740)
 SpeedContainer.BackgroundTransparency = 1
 SpeedContainer.Parent = Container
 
@@ -489,10 +752,29 @@ SpeedSlider.BorderSizePixel = 0
 SpeedSlider.Font = Enum.Font.Gotham
 SpeedSlider.Parent = SpeedContainer
 
+-- Hitbox Size Slider
+local hbSlider = createSlider("Hitbox Size", 10, 775, Container, 2, 15, 5, function(val)
+    setHitboxSize(val)
+end)
+
+-- AutoClicker Delay Slider
+local acSlider = createSlider("Click Delay(ms)", 10, 810, Container, 10, 1000, 100, function(val)
+    setAutoClickerDelay(val)
+end)
+
+-- Chat Spam Settings
+local csMsgSlider = createSlider("Spam Msg", 10, 845, Container, 1, 50, 5, function(val)
+    -- Placeholder for message
+end)
+
+local csDelaySlider = createSlider("Spam Delay(s)", 10, 880, Container, 1, 60, 5, function(val)
+    setChatSpamDelay(val)
+end)
+
 -- TP Controls
 local TPControls = Instance.new("Frame")
 TPControls.Size = UDim2.new(0, 160, 0, 30)
-TPControls.Position = UDim2.new(0, 10, 0, 495)
+TPControls.Position = UDim2.new(0, 10, 0, 915)
 TPControls.BackgroundTransparency = 1
 TPControls.Parent = Container
 
@@ -519,7 +801,7 @@ TPEnableToggle.Parent = TPControls
 -- Status bar
 local StatusBar = Instance.new("TextLabel")
 StatusBar.Size = UDim2.new(1, -20, 0, 25)
-StatusBar.Position = UDim2.new(0, 10, 0, 530)
+StatusBar.Position = UDim2.new(0, 10, 0, 950)
 StatusBar.Text = "Ready"
 StatusBar.TextColor3 = Color3.fromRGB(150, 150, 180)
 StatusBar.TextScaled = true
@@ -907,7 +1189,6 @@ plTumbler.onToggle(function(state)
     if state then
         updatePlayerList()
         
-        -- Update when players join/leave
         local conn1 = Players.PlayerAdded:Connect(function()
             if playerListEnabled then updatePlayerList() end
         end)
@@ -918,6 +1199,48 @@ plTumbler.onToggle(function(state)
         end)
         table.insert(highlightConnections, conn2)
     end
+end)
+
+-- ANTI-VOID
+avTumbler.onToggle(function(state)
+    toggleAntiVoid(state)
+    setStatus(state and "Anti-Void ON" or "Anti-Void OFF", state and Color3.fromRGB(255, 200, 100) or nil)
+end)
+
+-- FULLBRIGHT
+fbTumbler.onToggle(function(state)
+    toggleFullBright(state)
+    setStatus(state and "FullBright ON" or "FullBright OFF", state and Color3.fromRGB(255, 255, 150) or nil)
+end)
+
+-- HITBOX
+hbTumbler.onToggle(function(state)
+    toggleHitbox(state)
+    setStatus(state and "Hitbox ON" or "Hitbox OFF", state and Color3.fromRGB(255, 100, 200) or nil)
+end)
+
+-- AUTOCLICKER
+acTumbler.onToggle(function(state)
+    toggleAutoClicker(state)
+    setStatus(state and "AutoClicker ON" or "AutoClicker OFF", state and Color3.fromRGB(255, 150, 50) or nil)
+end)
+
+-- CHAT SPAM
+csTumbler.onToggle(function(state)
+    toggleChatSpam(state)
+    setStatus(state and "Chat Spam ON" or "Chat Spam OFF", state and Color3.fromRGB(200, 200, 0) or nil)
+end)
+
+-- BHOP
+bhopTumbler.onToggle(function(state)
+    toggleBhop(state)
+    setStatus(state and "Bhop ON" or "Bhop OFF", state and Color3.fromRGB(0, 255, 200) or nil)
+end)
+
+-- ANTI-FALL
+afallTumbler.onToggle(function(state)
+    toggleAntiFall(state)
+    setStatus(state and "Anti-Fall ON" or "Anti-Fall OFF", state and Color3.fromRGB(100, 255, 100) or nil)
 end)
 
 -- TP Tool functions
@@ -1170,6 +1493,26 @@ LocalPlayer.CharacterAdded:Connect(function()
     if wallhackEnabled then
         task.wait(0.5)
         updateWallhack()
+    end
+    
+    if fullBrightEnabled then
+        task.wait(0.3)
+        toggleFullBright(true)
+    end
+    
+    if fovEnabled then
+        task.wait(0.3)
+        Camera.FieldOfView = fovValue
+    end
+    
+    if hitboxEnabled then
+        task.wait(0.3)
+        toggleHitbox(true)
+    end
+    
+    if antiFallEnabled then
+        task.wait(0.3)
+        toggleAntiFall(true)
     end
 end)
 
