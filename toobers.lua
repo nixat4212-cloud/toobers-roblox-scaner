@@ -1,5 +1,5 @@
--- WIA HUB :: FULL GUI WITH SCROLLING :: whitewia/tordark
--- FIXED: Noclip no longer teleports, full labels, scrollable
+-- WIA HUB :: FULL GUI WITH SCROLLING + GODMODE :: whitewia/tordark
+-- FIXED: Noclip no longer teleports, full labels, scrollable, GODMODE added
 
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
@@ -15,7 +15,13 @@ local flySpeed = 50
 local bodyVelocity = nil
 local bodyGyro = nil
 local noclipConnection = nil
-local originalCollisions = {} -- Save original collision states
+local originalCollisions = {}
+
+-- Godmode variables
+local godmodeEnabled = false
+local godmodeConnection = nil
+local godmodeHealthConnection = nil
+local godmodeHumanoid = nil
 
 -- TP Tool variables
 local tpTool = nil
@@ -36,7 +42,7 @@ ScreenGui.Name = "WiaHubGUI"
 ScreenGui.Parent = game:GetService("CoreGui")
 
 local MainFrame = Instance.new("Frame")
-MainFrame.Size = UDim2.new(0, 320, 0, 320)
+MainFrame.Size = UDim2.new(0, 320, 0, 370)
 MainFrame.Position = UDim2.new(0, 10, 0, 10)
 MainFrame.BackgroundColor3 = Color3.fromRGB(10, 10, 20)
 MainFrame.BackgroundTransparency = 0.7
@@ -201,13 +207,15 @@ local ncTumbler = createTumbler("Noclip", 10, 110, Container, false)
 local whTumbler = createTumbler("Wallhack", 10, 145, Container, false)
 -- ROW 6: Anti-AFK
 local afkTumbler = createTumbler("Anti-AFK", 10, 180, Container, false)
--- ROW 7: TP Tool
-local tpToolTumbler = createTumbler("TP Tool", 10, 215, Container, false)
+-- ROW 7: Godmode
+local godTumbler = createTumbler("Godmode", 10, 215, Container, false)
+-- ROW 8: TP Tool
+local tpToolTumbler = createTumbler("TP Tool", 10, 250, Container, false)
 
 -- Speed Control
 local SpeedContainer = Instance.new("Frame")
 SpeedContainer.Size = UDim2.new(0, 150, 0, 30)
-SpeedContainer.Position = UDim2.new(0, 10, 0, 250)
+SpeedContainer.Position = UDim2.new(0, 10, 0, 285)
 SpeedContainer.BackgroundTransparency = 1
 SpeedContainer.Parent = Container
 
@@ -235,7 +243,7 @@ SpeedSlider.Parent = SpeedContainer
 -- TP Controls
 local TPControls = Instance.new("Frame")
 TPControls.Size = UDim2.new(0, 160, 0, 30)
-TPControls.Position = UDim2.new(0, 10, 0, 285)
+TPControls.Position = UDim2.new(0, 10, 0, 320)
 TPControls.BackgroundTransparency = 1
 TPControls.Parent = Container
 
@@ -262,7 +270,7 @@ TPEnableToggle.Parent = TPControls
 -- Status bar
 local StatusBar = Instance.new("TextLabel")
 StatusBar.Size = UDim2.new(1, -20, 0, 25)
-StatusBar.Position = UDim2.new(0, 10, 0, 320)
+StatusBar.Position = UDim2.new(0, 10, 0, 355)
 StatusBar.Text = "Ready"
 StatusBar.TextColor3 = Color3.fromRGB(150, 150, 180)
 StatusBar.TextScaled = true
@@ -306,6 +314,71 @@ local function setStatus(text, color)
     StatusBar.TextColor3 = color or Color3.fromRGB(150, 150, 180)
 end
 
+-- GODMODE FUNCTIONS
+local function enableGodmode()
+    local char = LocalPlayer.Character
+    if not char then return end
+    
+    local humanoid = char:FindFirstChild("Humanoid")
+    if not humanoid then return end
+    
+    godmodeHumanoid = humanoid
+    
+    -- Отключаем смерть
+    humanoid.BreakJointsOnDeath = false
+    
+    -- Подключаемся к изменению здоровья
+    if godmodeHealthConnection then
+        godmodeHealthConnection:Disconnect()
+        godmodeHealthConnection = nil
+    end
+    
+    godmodeHealthConnection = humanoid.HealthChanged:Connect(function(health)
+        if not godmodeEnabled then return end
+        if health < humanoid.MaxHealth then
+            humanoid.Health = humanoid.MaxHealth
+        end
+    end)
+    
+    -- Подстраховка: при падении в пустоту
+    if godmodeConnection then
+        godmodeConnection:Disconnect()
+        godmodeConnection = nil
+    end
+    
+    godmodeConnection = RunService.Heartbeat:Connect(function()
+        if not godmodeEnabled then return end
+        if humanoid and humanoid.Health < humanoid.MaxHealth then
+            humanoid.Health = humanoid.MaxHealth
+        end
+    end)
+    
+    -- Мгновенное восстановление при включении
+    humanoid.Health = humanoid.MaxHealth
+end
+
+local function disableGodmode()
+    if godmodeHealthConnection then
+        godmodeHealthConnection:Disconnect()
+        godmodeHealthConnection = nil
+    end
+    
+    if godmodeConnection then
+        godmodeConnection:Disconnect()
+        godmodeConnection = nil
+    end
+    
+    local char = LocalPlayer.Character
+    if char then
+        local humanoid = char:FindFirstChild("Humanoid")
+        if humanoid then
+            humanoid.BreakJointsOnDeath = true
+        end
+    end
+    
+    godmodeHumanoid = nil
+end
+
 -- TUMBLER EVENTS
 espTumbler.onToggle(function(state)
     espEnabled = state
@@ -339,13 +412,12 @@ flyTumbler.onToggle(function(state)
     end
 end)
 
--- NOCLIP FIXED - No teleport
+-- NOCLIP FIXED
 ncTumbler.onToggle(function(state)
     noclipEnabled = state
     setStatus(state and "Noclip ON" or "Noclip OFF", state and Color3.fromRGB(0,200,255) or nil)
     
     if state then
-        -- Save original collision states
         local char = LocalPlayer.Character
         if char then
             for _, part in ipairs(char:GetDescendants()) do
@@ -373,7 +445,6 @@ ncTumbler.onToggle(function(state)
             noclipConnection:Disconnect()
             noclipConnection = nil
         end
-        -- Restore original collisions WITHOUT teleporting
         local char = LocalPlayer.Character
         if char then
             for _, part in ipairs(char:GetDescendants()) do
@@ -493,6 +564,18 @@ afkTumbler.onToggle(function(state)
             antiAFKConnection:Disconnect()
             antiAFKConnection = nil
         end
+    end
+end)
+
+-- GODMODE
+godTumbler.onToggle(function(state)
+    godmodeEnabled = state
+    setStatus(state and "Godmode ON - You are immortal!" or "Godmode OFF", state and Color3.fromRGB(255, 0, 200) or nil)
+    
+    if state then
+        enableGodmode()
+    else
+        disableGodmode()
     end
 end)
 
@@ -688,6 +771,11 @@ LocalPlayer.CharacterAdded:Connect(function()
                 end
             end
         end
+    end
+    
+    if godmodeEnabled then
+        task.wait(0.3)
+        enableGodmode()
     end
     
     if tpTool then
