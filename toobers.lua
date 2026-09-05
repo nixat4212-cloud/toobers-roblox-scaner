@@ -1,5 +1,4 @@
--- WIA HUB :: FULL GUI WITH SCROLLING + GODMODE :: whitewia/tordark
--- FIXED: Noclip no longer teleports, full labels, scrollable, GODMODE added
+-- WIA HUB :: FULL GUI WITH SCROLLING + GODMODE + IMPROVED NOCLIP + MM2 :: whitewia/tordark
 
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
@@ -16,6 +15,19 @@ local bodyVelocity = nil
 local bodyGyro = nil
 local noclipConnection = nil
 local originalCollisions = {}
+
+-- Noclip improved (Force mode)
+local noclipForceMode = false
+local noclipForceConnection = nil
+
+-- Movement variables
+local walkSpeedEnabled = false
+local walkSpeedValue = 16
+local jumpPowerEnabled = false
+local jumpPowerValue = 50
+local infiniteJumpEnabled = false
+local originalWalkSpeed = 16
+local originalJumpPower = 50
 
 -- Godmode variables
 local godmodeEnabled = false
@@ -36,13 +48,18 @@ local whHighlights = {}
 local antiAFKEnabled = false
 local antiAFKConnection = nil
 
--- GUI (CoreGui) - SCROLLABLE VERSION
+-- MM2 variables
+local mm2ModeEnabled = false
+local mm2HighlightConnections = {}
+local mm2Highlights = {}
+
+-- GUI (CoreGui)
 local ScreenGui = Instance.new("ScreenGui")
 ScreenGui.Name = "WiaHubGUI"
 ScreenGui.Parent = game:GetService("CoreGui")
 
 local MainFrame = Instance.new("Frame")
-MainFrame.Size = UDim2.new(0, 320, 0, 370)
+MainFrame.Size = UDim2.new(0, 340, 0, 480)
 MainFrame.Position = UDim2.new(0, 10, 0, 10)
 MainFrame.BackgroundColor3 = Color3.fromRGB(10, 10, 20)
 MainFrame.BackgroundTransparency = 0.7
@@ -54,7 +71,7 @@ MainFrame.Parent = ScreenGui
 local Title = Instance.new("TextLabel")
 Title.Size = UDim2.new(1, 0, 0, 30)
 Title.Position = UDim2.new(0, 0, 0, 0)
-Title.Text = "WIA HUB v4"
+Title.Text = "WIA HUB v5"
 Title.TextColor3 = Color3.fromRGB(180, 0, 255)
 Title.TextScaled = true
 Title.BackgroundTransparency = 1
@@ -121,13 +138,13 @@ end)
 -- TUMBLER CREATION
 local function createTumbler(labelText, x, y, parent, defaultState)
     local container = Instance.new("Frame")
-    container.Size = UDim2.new(0, 150, 0, 30)
+    container.Size = UDim2.new(0, 160, 0, 30)
     container.Position = UDim2.new(0, x, 0, y)
     container.BackgroundTransparency = 1
     container.Parent = parent
-    
+
     local label = Instance.new("TextLabel")
-    label.Size = UDim2.new(0, 70, 0, 30)
+    label.Size = UDim2.new(0, 80, 0, 30)
     label.Position = UDim2.new(0, 0, 0, 0)
     label.Text = labelText
     label.TextColor3 = Color3.fromRGB(255,255,255)
@@ -136,23 +153,23 @@ local function createTumbler(labelText, x, y, parent, defaultState)
     label.Font = Enum.Font.Gotham
     label.TextXAlignment = Enum.TextXAlignment.Left
     label.Parent = container
-    
+
     local bg = Instance.new("Frame")
     bg.Size = UDim2.new(0, 50, 0, 24)
-    bg.Position = UDim2.new(0, 80, 0, 3)
+    bg.Position = UDim2.new(0, 85, 0, 3)
     bg.BackgroundColor3 = Color3.fromRGB(60, 60, 70)
     bg.BorderSizePixel = 0
     bg.Parent = container
-    
+
     local knob = Instance.new("Frame")
     knob.Size = UDim2.new(0, 20, 0, 20)
     knob.Position = UDim2.new(0, 2, 0, 2)
     knob.BackgroundColor3 = Color3.fromRGB(200, 200, 200)
     knob.BorderSizePixel = 0
     knob.Parent = bg
-    
+
     local state = defaultState or false
-    
+
     local function updateTumbler()
         if state then
             bg.BackgroundColor3 = Color3.fromRGB(100, 200, 100)
@@ -164,21 +181,21 @@ local function createTumbler(labelText, x, y, parent, defaultState)
             knob.BackgroundColor3 = Color3.fromRGB(200, 200, 200)
         end
     end
-    
+
     updateTumbler()
-    
+
     local btn = Instance.new("TextButton")
     btn.Size = UDim2.new(1, 0, 1, 0)
     btn.BackgroundTransparency = 1
     btn.Parent = container
-    
+
     local toggleEvent = Instance.new("BindableEvent")
     btn.MouseButton1Click:Connect(function()
         state = not state
         updateTumbler()
         toggleEvent:Fire(state)
     end)
-    
+
     return {
         container = container,
         bg = bg,
@@ -195,6 +212,55 @@ local function createTumbler(labelText, x, y, parent, defaultState)
     }
 end
 
+-- SLIDER CREATION
+local function createSlider(labelText, x, y, parent, minVal, maxVal, defaultVal, callback)
+    local container = Instance.new("Frame")
+    container.Size = UDim2.new(0, 160, 0, 30)
+    container.Position = UDim2.new(0, x, 0, y)
+    container.BackgroundTransparency = 1
+    container.Parent = parent
+
+    local label = Instance.new("TextLabel")
+    label.Size = UDim2.new(0, 70, 0, 30)
+    label.Position = UDim2.new(0, 0, 0, 0)
+    label.Text = labelText
+    label.TextColor3 = Color3.fromRGB(255,255,255)
+    label.TextScaled = true
+    label.BackgroundTransparency = 1
+    label.Font = Enum.Font.Gotham
+    label.TextXAlignment = Enum.TextXAlignment.Left
+    label.Parent = container
+
+    local textBox = Instance.new("TextBox")
+    textBox.Size = UDim2.new(0, 50, 0, 24)
+    textBox.Position = UDim2.new(0, 80, 0, 3)
+    textBox.Text = tostring(defaultVal)
+    textBox.TextColor3 = Color3.fromRGB(255,255,255)
+    textBox.BackgroundColor3 = Color3.fromRGB(40,40,55)
+    textBox.BorderSizePixel = 0
+    textBox.Font = Enum.Font.Gotham
+    textBox.Parent = container
+
+    textBox.FocusLost:Connect(function()
+        local num = tonumber(textBox.Text)
+        if num and num >= minVal and num <= maxVal then
+            callback(num)
+            textBox.Text = tostring(num)
+        else
+            textBox.Text = tostring(defaultVal)
+            callback(defaultVal)
+        end
+    end)
+
+    return {
+        container = container,
+        textBox = textBox,
+        setValue = function(val)
+            textBox.Text = tostring(val)
+        end
+    }
+end
+
 -- ROW 1: ESP
 local espTumbler = createTumbler("ESP Box", 10, 5, Container, true)
 -- ROW 2: Tracers
@@ -203,19 +269,52 @@ local trTumbler = createTumbler("Tracers", 10, 40, Container, true)
 local flyTumbler = createTumbler("Flight", 10, 75, Container, false)
 -- ROW 4: Noclip
 local ncTumbler = createTumbler("Noclip", 10, 110, Container, false)
--- ROW 5: Wallhack
-local whTumbler = createTumbler("Wallhack", 10, 145, Container, false)
--- ROW 6: Anti-AFK
-local afkTumbler = createTumbler("Anti-AFK", 10, 180, Container, false)
--- ROW 7: Godmode
-local godTumbler = createTumbler("Godmode", 10, 215, Container, false)
--- ROW 8: TP Tool
-local tpToolTumbler = createTumbler("TP Tool", 10, 250, Container, false)
+-- ROW 5: Noclip Force Mode
+local ncForceTumbler = createTumbler("Noclip Force", 10, 145, Container, false)
+-- ROW 6: Wallhack
+local whTumbler = createTumbler("Wallhack", 10, 180, Container, false)
+-- ROW 7: Anti-AFK
+local afkTumbler = createTumbler("Anti-AFK", 10, 215, Container, false)
+-- ROW 8: Godmode
+local godTumbler = createTumbler("Godmode", 10, 250, Container, false)
+-- ROW 9: Infinite Jump
+local infJumpTumbler = createTumbler("Infinite Jump", 10, 285, Container, false)
+-- ROW 10: MM2 Mode
+local mm2Tumbler = createTumbler("MM2 Mode", 10, 320, Container, false)
+-- ROW 11: TP Tool
+local tpToolTumbler = createTumbler("TP Tool", 10, 355, Container, false)
 
--- Speed Control
+-- Speed Controls
+local wsSlider = createSlider("Walk Speed", 10, 390, Container, 10, 200, 16, function(val)
+    walkSpeedValue = val
+    if walkSpeedEnabled then
+        local char = LocalPlayer.Character
+        if char then
+            local humanoid = char:FindFirstChild("Humanoid")
+            if humanoid then
+                humanoid.WalkSpeed = val
+            end
+        end
+    end
+end)
+
+local jpSlider = createSlider("Jump Power", 10, 425, Container, 10, 200, 50, function(val)
+    jumpPowerValue = val
+    if jumpPowerEnabled then
+        local char = LocalPlayer.Character
+        if char then
+            local humanoid = char:FindFirstChild("Humanoid")
+            if humanoid then
+                humanoid.JumpPower = val
+            end
+        end
+    end
+end)
+
+-- Fly Speed (moved to 460)
 local SpeedContainer = Instance.new("Frame")
-SpeedContainer.Size = UDim2.new(0, 150, 0, 30)
-SpeedContainer.Position = UDim2.new(0, 10, 0, 285)
+SpeedContainer.Size = UDim2.new(0, 160, 0, 30)
+SpeedContainer.Position = UDim2.new(0, 10, 0, 460)
 SpeedContainer.BackgroundTransparency = 1
 SpeedContainer.Parent = Container
 
@@ -243,7 +342,7 @@ SpeedSlider.Parent = SpeedContainer
 -- TP Controls
 local TPControls = Instance.new("Frame")
 TPControls.Size = UDim2.new(0, 160, 0, 30)
-TPControls.Position = UDim2.new(0, 10, 0, 320)
+TPControls.Position = UDim2.new(0, 10, 0, 495)
 TPControls.BackgroundTransparency = 1
 TPControls.Parent = Container
 
@@ -270,7 +369,7 @@ TPEnableToggle.Parent = TPControls
 -- Status bar
 local StatusBar = Instance.new("TextLabel")
 StatusBar.Size = UDim2.new(1, -20, 0, 25)
-StatusBar.Position = UDim2.new(0, 10, 0, 355)
+StatusBar.Position = UDim2.new(0, 10, 0, 530)
 StatusBar.Text = "Ready"
 StatusBar.TextColor3 = Color3.fromRGB(150, 150, 180)
 StatusBar.TextScaled = true
@@ -314,46 +413,72 @@ local function setStatus(text, color)
     StatusBar.TextColor3 = color or Color3.fromRGB(150, 150, 180)
 end
 
+-- IMPROVED NOCLIP FUNCTIONS
+local function enableNoclipForce()
+    if noclipForceConnection then noclipForceConnection:Disconnect() end
+    noclipForceConnection = RunService.Heartbeat:Connect(function()
+        if not noclipForceMode or not noclipEnabled then return end
+        local char = LocalPlayer.Character
+        if not char then return end
+        local root = char:FindFirstChild("HumanoidRootPart")
+        if not root then return end
+        
+        -- Force move through walls using CFrame
+        local moveDirection = Vector3.new(0, 0, 0)
+        local forward = Camera.CFrame.LookVector
+        local right = Camera.CFrame.RightVector
+        local up = Camera.CFrame.UpVector
+        
+        if UserInputService:IsKeyDown(Enum.KeyCode.W) then moveDirection = moveDirection + forward end
+        if UserInputService:IsKeyDown(Enum.KeyCode.S) then moveDirection = moveDirection - forward end
+        if UserInputService:IsKeyDown(Enum.KeyCode.A) then moveDirection = moveDirection - right end
+        if UserInputService:IsKeyDown(Enum.KeyCode.D) then moveDirection = moveDirection + right end
+        if UserInputService:IsKeyDown(Enum.KeyCode.Space) then moveDirection = moveDirection + up end
+        if UserInputService:IsKeyDown(Enum.KeyCode.LeftShift) then moveDirection = moveDirection - up end
+        
+        if moveDirection.Magnitude > 0 then
+            local speed = flySpeed * 0.5
+            local newPos = root.Position + moveDirection.Unit * speed
+            root.CFrame = CFrame.new(newPos, root.Position + moveDirection.Unit)
+        end
+    end)
+end
+
 -- GODMODE FUNCTIONS
 local function enableGodmode()
     local char = LocalPlayer.Character
     if not char then return end
-    
+
     local humanoid = char:FindFirstChild("Humanoid")
     if not humanoid then return end
-    
+
     godmodeHumanoid = humanoid
-    
-    -- Отключаем смерть
     humanoid.BreakJointsOnDeath = false
-    
-    -- Подключаемся к изменению здоровья
+
     if godmodeHealthConnection then
         godmodeHealthConnection:Disconnect()
         godmodeHealthConnection = nil
     end
-    
+
     godmodeHealthConnection = humanoid.HealthChanged:Connect(function(health)
         if not godmodeEnabled then return end
         if health < humanoid.MaxHealth then
             humanoid.Health = humanoid.MaxHealth
         end
     end)
-    
-    -- Подстраховка: при падении в пустоту
+
     if godmodeConnection then
         godmodeConnection:Disconnect()
         godmodeConnection = nil
     end
-    
+
     godmodeConnection = RunService.Heartbeat:Connect(function()
         if not godmodeEnabled then return end
         if humanoid and humanoid.Health < humanoid.MaxHealth then
             humanoid.Health = humanoid.MaxHealth
         end
     end)
-    
-    -- Мгновенное восстановление при включении
+
     humanoid.Health = humanoid.MaxHealth
 end
 
@@ -362,12 +487,12 @@ local function disableGodmode()
         godmodeHealthConnection:Disconnect()
         godmodeHealthConnection = nil
     end
-    
+
     if godmodeConnection then
         godmodeConnection:Disconnect()
         godmodeConnection = nil
     end
-    
+
     local char = LocalPlayer.Character
     if char then
         local humanoid = char:FindFirstChild("Humanoid")
@@ -375,8 +500,80 @@ local function disableGodmode()
             humanoid.BreakJointsOnDeath = true
         end
     end
-    
+
     godmodeHumanoid = nil
+end
+
+-- MM2 FUNCTIONS
+local function clearMM2Highlights()
+    for _, conn in pairs(mm2HighlightConnections) do
+        conn:Disconnect()
+    end
+    mm2HighlightConnections = {}
+
+    for _, highlight in pairs(mm2Highlights) do
+        if highlight and highlight.Parent then
+            highlight:Destroy()
+        end
+    end
+    mm2Highlights = {}
+end
+
+local function applyMM2Highlight(char, color, label)
+    if not char or not mm2ModeEnabled then return end
+    local old = char:FindFirstChild("WIA_MM2")
+    if old then old:Destroy() end
+
+    -- Check if player has a tool (weapon)
+    local hasWeapon = false
+    for _, child in pairs(char:GetChildren()) do
+        if child:IsA("Tool") then
+            hasWeapon = true
+            break
+        end
+    end
+
+    -- If no weapon -> innocent (green), if weapon -> sheriff/innocent? Actually in MM2:
+    -- Sheriff has a gun, murderer has a knife, innocent has nothing
+    -- We'll use different colors: murderer = red, sheriff = blue, innocent = green
+    local highlightColor = Color3.fromRGB(0, 255, 0) -- innocent default
+    
+    -- Check for specific weapons
+    for _, child in pairs(char:GetChildren()) do
+        if child:IsA("Tool") then
+            local toolName = child.Name:lower()
+            if toolName:find("knife") or toolName:find("murderer") or toolName:find("murder") then
+                highlightColor = Color3.fromRGB(255, 0, 0) -- murderer = red
+                break
+            elseif toolName:find("gun") or toolName:find("sheriff") or toolName:find("pistol") then
+                highlightColor = Color3.fromRGB(0, 100, 255) -- sheriff = blue
+                break
+            end
+        end
+    end
+
+    local highlight = Instance.new("Highlight")
+    highlight.Name = "WIA_MM2"
+    highlight.FillColor = highlightColor
+    highlight.FillTransparency = 0.3
+    highlight.OutlineColor = Color3.fromRGB(255, 255, 255)
+    highlight.OutlineTransparency = 0.1
+    highlight.DepthMode = Enum.HighlightDepthMode.AlwaysOnTop
+    highlight.Parent = char
+    mm2Highlights[char] = highlight
+end
+
+local function updateMM2()
+    if not mm2ModeEnabled then
+        clearMM2Highlights()
+        return
+    end
+    
+    for _, plr in pairs(Players:GetPlayers()) do
+        if plr ~= LocalPlayer and plr.Character then
+            applyMM2Highlight(plr.Character)
+        end
+    end
 end
 
 -- TUMBLER EVENTS
@@ -393,14 +590,14 @@ end)
 flyTumbler.onToggle(function(state)
     flightEnabled = state
     setStatus(state and "Flight ON" or "Flight OFF", state and Color3.fromRGB(0,255,200) or nil)
-    
+
     if state then
         local char = LocalPlayer.Character
         if char and char:FindFirstChild("HumanoidRootPart") then
             bodyVelocity = Instance.new("BodyVelocity")
             bodyVelocity.MaxForce = Vector3.new(1e6, 1e6, 1e6)
             bodyVelocity.Parent = char.HumanoidRootPart
-            
+
             bodyGyro = Instance.new("BodyGyro")
             bodyGyro.MaxTorque = Vector3.new(1e6, 1e6, 1e6)
             bodyGyro.CFrame = char.HumanoidRootPart.CFrame
@@ -412,11 +609,11 @@ flyTumbler.onToggle(function(state)
     end
 end)
 
--- NOCLIP FIXED
+-- NOCLIP IMPROVED
 ncTumbler.onToggle(function(state)
     noclipEnabled = state
     setStatus(state and "Noclip ON" or "Noclip OFF", state and Color3.fromRGB(0,200,255) or nil)
-    
+
     if state then
         local char = LocalPlayer.Character
         if char then
@@ -427,7 +624,7 @@ ncTumbler.onToggle(function(state)
                 end
             end
         end
-        
+
         if noclipConnection then noclipConnection:Disconnect() end
         noclipConnection = RunService.Heartbeat:Connect(function()
             if not noclipEnabled then return end
@@ -440,10 +637,19 @@ ncTumbler.onToggle(function(state)
                 end
             end
         end)
+
+        -- Enable force mode if it's on
+        if noclipForceMode then
+            enableNoclipForce()
+        end
     else
         if noclipConnection then
             noclipConnection:Disconnect()
             noclipConnection = nil
+        end
+        if noclipForceConnection then
+            noclipForceConnection:Disconnect()
+            noclipForceConnection = nil
         end
         local char = LocalPlayer.Character
         if char then
@@ -457,20 +663,35 @@ ncTumbler.onToggle(function(state)
     end
 end)
 
+-- NOCLIP FORCE MODE
+ncForceTumbler.onToggle(function(state)
+    noclipForceMode = state
+    setStatus(state and "Noclip Force ON - Move through walls with WASD" or "Noclip Force OFF", state and Color3.fromRGB(255, 150, 0) or nil)
+    
+    if state and noclipEnabled then
+        enableNoclipForce()
+    else
+        if noclipForceConnection then
+            noclipForceConnection:Disconnect()
+            noclipForceConnection = nil
+        end
+    end
+end)
+
 -- WALLHACK
 local function clearWallhack()
     for _, conn in pairs(highlightConnections) do
         conn:Disconnect()
     end
     highlightConnections = {}
-    
+
     for _, highlight in pairs(whHighlights) do
         if highlight and highlight.Parent then
             highlight:Destroy()
         end
     end
     whHighlights = {}
-    
+
     for _, plr in pairs(Players:GetPlayers()) do
         if plr ~= LocalPlayer and plr.Character then
             local wh = plr.Character:FindFirstChild("WIA_WH")
@@ -483,7 +704,7 @@ local function applyWallhackToChar(char)
     if not char or not wallhackEnabled then return end
     local old = char:FindFirstChild("WIA_WH")
     if old then old:Destroy() end
-    
+
     local highlight = Instance.new("Highlight")
     highlight.Name = "WIA_WH"
     highlight.FillColor = Color3.fromRGB(180, 0, 255)
@@ -510,11 +731,11 @@ end
 whTumbler.onToggle(function(state)
     wallhackEnabled = state
     setStatus(state and "Wallhack ON" or "Wallhack OFF", state and Color3.fromRGB(180,0,255) or nil)
-    
+
     if state then
         clearWallhack()
         updateWallhack()
-        
+
         local conn1 = Players.PlayerAdded:Connect(function(plr)
             local conn2 = plr.CharacterAdded:Connect(function(char)
                 task.wait(0.3)
@@ -525,7 +746,7 @@ whTumbler.onToggle(function(state)
             table.insert(highlightConnections, conn2)
         end)
         table.insert(highlightConnections, conn1)
-        
+
         local conn3 = LocalPlayer.CharacterAdded:Connect(function()
             task.wait(0.5)
             if wallhackEnabled then
@@ -542,7 +763,7 @@ end)
 afkTumbler.onToggle(function(state)
     antiAFKEnabled = state
     setStatus(state and "Anti-AFK ON" or "Anti-AFK OFF", state and Color3.fromRGB(255,200,0) or nil)
-    
+
     if state then
         if antiAFKConnection then antiAFKConnection:Disconnect() end
         antiAFKConnection = RunService.Heartbeat:Connect(function()
@@ -571,7 +792,7 @@ end)
 godTumbler.onToggle(function(state)
     godmodeEnabled = state
     setStatus(state and "Godmode ON - You are immortal!" or "Godmode OFF", state and Color3.fromRGB(255, 0, 200) or nil)
-    
+
     if state then
         enableGodmode()
     else
@@ -579,13 +800,116 @@ godTumbler.onToggle(function(state)
     end
 end)
 
--- TP Tool
+-- INFINITE JUMP
+infJumpTumbler.onToggle(function(state)
+    infiniteJumpEnabled = state
+    setStatus(state and "Infinite Jump ON" or "Infinite Jump OFF", state and Color3.fromRGB(0, 255, 255) or nil)
+
+    if state then
+        -- Override jump
+        local function handleJump()
+            if not infiniteJumpEnabled then return end
+            local char = LocalPlayer.Character
+            if char then
+                local humanoid = char:FindFirstChild("Humanoid")
+                if humanoid then
+                    -- Force jump power every frame
+                    humanoid.JumpPower = 50
+                end
+            end
+        end
+        
+        -- Connect to jump event
+        UserInputService.InputBegan:Connect(function(input, gameProcessed)
+            if not infiniteJumpEnabled then return end
+            if gameProcessed then return end
+            if input.KeyCode == Enum.KeyCode.Space then
+                local char = LocalPlayer.Character
+                if char then
+                    local humanoid = char:FindFirstChild("Humanoid")
+                    if humanoid then
+                        humanoid:ChangeState(Enum.HumanoidStateType.Jumping)
+                    end
+                end
+            end
+        end)
+    end
+end)
+
+-- MM2 MODE
+mm2Tumbler.onToggle(function(state)
+    mm2ModeEnabled = state
+    setStatus(state and "MM2 Mode ON - Red=Murd, Blue=Sheriff, Green=Innocent" or "MM2 Mode OFF", state and Color3.fromRGB(255, 0, 255) or nil)
+
+    if state then
+        clearMM2Highlights()
+        updateMM2()
+
+        local conn1 = Players.PlayerAdded:Connect(function(plr)
+            local conn2 = plr.CharacterAdded:Connect(function(char)
+                task.wait(0.3)
+                if mm2ModeEnabled then
+                    applyMM2Highlight(char)
+                end
+            end)
+            table.insert(mm2HighlightConnections, conn2)
+        end)
+        table.insert(mm2HighlightConnections, conn1)
+
+        local conn3 = LocalPlayer.CharacterAdded:Connect(function()
+            task.wait(0.5)
+            if mm2ModeEnabled then
+                updateMM2()
+            end
+        end)
+        table.insert(mm2HighlightConnections, conn3)
+        
+        -- Update on tool changes
+        local conn4 = RunService.Heartbeat:Connect(function()
+            if not mm2ModeEnabled then return end
+            for _, plr in pairs(Players:GetPlayers()) do
+                if plr ~= LocalPlayer and plr.Character then
+                    local highlight = plr.Character:FindFirstChild("WIA_MM2")
+                    if highlight then
+                        -- Update color based on current weapons
+                        local hasWeapon = false
+                        local isMurderer = false
+                        local isSheriff = false
+                        for _, child in pairs(plr.Character:GetChildren()) do
+                            if child:IsA("Tool") then
+                                hasWeapon = true
+                                local name = child.Name:lower()
+                                if name:find("knife") or name:find("murder") then
+                                    isMurderer = true
+                                elseif name:find("gun") or name:find("sheriff") or name:find("pistol") then
+                                    isSheriff = true
+                                end
+                            end
+                        end
+                        if isMurderer then
+                            highlight.FillColor = Color3.fromRGB(255, 0, 0)
+                        elseif isSheriff then
+                            highlight.FillColor = Color3.fromRGB(0, 100, 255)
+                        else
+                            highlight.FillColor = Color3.fromRGB(0, 255, 0)
+                        end
+                    end
+                end
+            end
+        end)
+        table.insert(mm2HighlightConnections, conn4)
+    else
+        clearMM2Highlights()
+    end
+end)
+
+-- TP Tool functions
 local function createTPTool()
     local tool = Instance.new("Tool")
     tool.Name = "WIA_TP"
     tool.RequiresHandle = false
     tool.CanBeDropped = false
-    
+
     local function teleport(mousePos)
         if not tpEnabled then return end
         local targetPos = mousePos.Hit.Position
@@ -593,7 +917,7 @@ local function createTPTool()
         if char and char:FindFirstChild("HumanoidRootPart") then
             local root = char.HumanoidRootPart
             root.CFrame = CFrame.new(targetPos + Vector3.new(0, 3, 0))
-            
+
             local part = Instance.new("Part")
             part.Size = Vector3.new(2, 0.5, 2)
             part.Position = targetPos
@@ -606,27 +930,27 @@ local function createTPTool()
             game:GetService("Debris"):AddItem(part, 0.5)
         end
     end
-    
+
     tool.Equipped:Connect(function()
         tpEnabled = true
         TPEnableToggle.Text = "ON"
         Mouse.Icon = "rbxasset://SystemCursors/Crosshair"
         setStatus("TP Ready - Click to teleport", Color3.fromRGB(0,255,150))
     end)
-    
+
     tool.Unequipped:Connect(function()
         tpEnabled = false
         TPEnableToggle.Text = "OFF"
         Mouse.Icon = "rbxasset://SystemCursors/Arrow"
         setStatus("TP Off")
     end)
-    
+
     tool.Activated:Connect(function()
         if tpEnabled then
             teleport(Mouse)
         end
     end)
-    
+
     return tool
 end
 
@@ -643,13 +967,13 @@ tpToolTumbler.onToggle(function(state)
         setStatus("TP Tool removed")
         return
     end
-    
+
     if not tpTool then
         tpTool = createTPTool()
         tpTool.Parent = LocalPlayer.Backpack
         TPToolButton.Text = "Remove"
         setStatus("TP Tool added", Color3.fromRGB(0,255,150))
-        
+
         local char = LocalPlayer.Character
         if char and char:FindFirstChild("Humanoid") then
             char.Humanoid:EquipTool(tpTool)
@@ -681,7 +1005,7 @@ TPToolButton.MouseButton1Click:Connect(function()
         TPToolButton.Text = "Remove"
         setStatus("TP Tool added", Color3.fromRGB(0,255,150))
         tpToolTumbler.setState(true)
-        
+
         local char = LocalPlayer.Character
         if char and char:FindFirstChild("Humanoid") then
             char.Humanoid:EquipTool(tpTool)
@@ -705,11 +1029,28 @@ SpeedSlider.FocusLost:Connect(function()
     if num and num > 0 and num < 500 then
         flySpeed = num
         SpeedSlider.Text = tostring(num)
-        setStatus("Speed set to " .. num)
+        setStatus("Fly Speed set to " .. num)
     else
         SpeedSlider.Text = tostring(flySpeed)
     end
 end)
+
+-- Walk Speed & Jump Power toggle (auto-enable when value changes)
+walkSpeedEnabled = true
+jumpPowerEnabled = true
+
+-- Set initial values
+task.wait(0.5)
+local char = LocalPlayer.Character
+if char then
+    local humanoid = char:FindFirstChild("Humanoid")
+    if humanoid then
+        humanoid.WalkSpeed = 16
+        humanoid.JumpPower = 50
+        originalWalkSpeed = humanoid.WalkSpeed
+        originalJumpPower = humanoid.JumpPower
+    end
+end
 
 -- Flight update
 RunService.Heartbeat:Connect(function()
@@ -718,19 +1059,19 @@ RunService.Heartbeat:Connect(function()
     if not char then return end
     local root = char:FindFirstChild("HumanoidRootPart")
     if not root then return end
-    
+
     local moveDirection = Vector3.new(0, 0, 0)
     local forward = Camera.CFrame.LookVector
     local right = Camera.CFrame.RightVector
     local up = Camera.CFrame.UpVector
-    
+
     if UserInputService:IsKeyDown(Enum.KeyCode.W) then moveDirection = moveDirection + forward end
     if UserInputService:IsKeyDown(Enum.KeyCode.S) then moveDirection = moveDirection - forward end
     if UserInputService:IsKeyDown(Enum.KeyCode.A) then moveDirection = moveDirection - right end
     if UserInputService:IsKeyDown(Enum.KeyCode.D) then moveDirection = moveDirection + right end
     if UserInputService:IsKeyDown(Enum.KeyCode.Space) then moveDirection = moveDirection + up end
     if UserInputService:IsKeyDown(Enum.KeyCode.LeftShift) then moveDirection = moveDirection - up end
-    
+
     if moveDirection.Magnitude > 0 then
         moveDirection = moveDirection.Unit * flySpeed
         bodyVelocity.Velocity = moveDirection
@@ -760,7 +1101,7 @@ LocalPlayer.CharacterAdded:Connect(function()
             end
         end
     end
-    
+
     if noclipEnabled then
         task.wait(0.3)
         local char = LocalPlayer.Character
@@ -772,12 +1113,34 @@ LocalPlayer.CharacterAdded:Connect(function()
             end
         end
     end
-    
+
     if godmodeEnabled then
         task.wait(0.3)
         enableGodmode()
     end
-    
+
+    if walkSpeedEnabled then
+        task.wait(0.3)
+        local char = LocalPlayer.Character
+        if char then
+            local humanoid = char:FindFirstChild("Humanoid")
+            if humanoid then
+                humanoid.WalkSpeed = walkSpeedValue
+            end
+        end
+    end
+
+    if jumpPowerEnabled then
+        task.wait(0.3)
+        local char = LocalPlayer.Character
+        if char then
+            local humanoid = char:FindFirstChild("Humanoid")
+            if humanoid then
+                humanoid.JumpPower = jumpPowerValue
+            end
+        end
+    end
+
     if tpTool then
         task.wait(0.5)
         tpTool.Parent = LocalPlayer.Backpack
@@ -786,10 +1149,15 @@ LocalPlayer.CharacterAdded:Connect(function()
             char.Humanoid:EquipTool(tpTool)
         end
     end
-    
+
     if wallhackEnabled then
         task.wait(0.5)
         updateWallhack()
+    end
+
+    if mm2ModeEnabled then
+        task.wait(0.5)
+        updateMM2()
     end
 end)
 
@@ -800,13 +1168,13 @@ local PURPLE = Color3.fromRGB(180, 0, 255)
 RunService.RenderStepped:Connect(function()
     for i = #espLines, 1, -1 do espLines[i]:Remove() espLines[i] = nil end
     for i = #tracerLines, 1, -1 do tracerLines[i]:Remove() tracerLines[i] = nil end
-    
+
     if not (espEnabled or tracerEnabled) then return end
-    
+
     local players = Players:GetPlayers()
     local camPos = Camera.CFrame.Position
     local viewport = Camera.ViewportSize
-    
+
     for i = 1, #players do
         local plr = players[i]
         if plr ~= LocalPlayer and plr.Character then
@@ -816,7 +1184,7 @@ RunService.RenderStepped:Connect(function()
                 if onScreen then
                     local dist = (head.Position - camPos).Magnitude
                     local size = math.clamp(100 / dist * 10, 15, 40)
-                    
+
                     if espEnabled then
                         local lines = {
                             Drawing.new("Line"), Drawing.new("Line"),
@@ -832,7 +1200,7 @@ RunService.RenderStepped:Connect(function()
                         lines[3].To = Vector2.new(x, y + h)
                         lines[4].From = Vector2.new(x, y + h)
                         lines[4].To = Vector2.new(x, y)
-                        
+
                         for j = 1, 4 do
                             lines[j].Color = PURPLE
                             lines[j].Thickness = 2
@@ -840,7 +1208,7 @@ RunService.RenderStepped:Connect(function()
                             espLines[#espLines + 1] = lines[j]
                         end
                     end
-                    
+
                     if tracerEnabled then
                         local tracer = Drawing.new("Line")
                         tracer.From = Vector2.new(viewport.X/2, viewport.Y)
