@@ -1,4 +1,4 @@
--- WIA HUB :: ESP + Tracers + Flight + Noclip + TP Tool :: whitewia/tordark
+-- WIA HUB :: ESP + Tracers + Flight + Noclip + TP Tool + Wallhack + Anti-AFK :: whitewia/tordark
 -- Optimized, head ESP, purple theme, draggable, LCTRL hide
 
 local Players = game:GetService("Players")
@@ -20,13 +20,21 @@ local noclipConnection = nil
 local tpTool = nil
 local tpEnabled = false
 
+-- Wallhack variables
+local wallhackEnabled = false
+local highlightHandle = nil
+
+-- Anti-AFK variables
+local antiAFKEnabled = false
+local antiAFKConnection = nil
+
 -- GUI (CoreGui)
 local ScreenGui = Instance.new("ScreenGui")
 ScreenGui.Name = "WiaHubGUI"
 ScreenGui.Parent = game:GetService("CoreGui")
 
 local Frame = Instance.new("Frame")
-Frame.Size = UDim2.new(0, 340, 0, 160)
+Frame.Size = UDim2.new(0, 380, 0, 190)
 Frame.Position = UDim2.new(0, 10, 0, 10)
 Frame.BackgroundColor3 = Color3.fromRGB(15, 15, 25)
 Frame.BackgroundTransparency = 0.5
@@ -78,50 +86,66 @@ end)
 
 -- Buttons (row 1)
 local EspToggle = Instance.new("TextButton")
-EspToggle.Size = UDim2.new(0, 60, 0, 25)
+EspToggle.Size = UDim2.new(0, 55, 0, 22)
 EspToggle.Position = UDim2.new(0, 5, 0, 25)
-EspToggle.Text = "ESP: ON"
+EspToggle.Text = "ESP"
 EspToggle.TextColor3 = Color3.fromRGB(255,255,255)
 EspToggle.BackgroundColor3 = Color3.fromRGB(40,40,50)
 EspToggle.Parent = Frame
 
 local TracersToggle = Instance.new("TextButton")
-TracersToggle.Size = UDim2.new(0, 60, 0, 25)
-TracersToggle.Position = UDim2.new(0, 70, 0, 25)
-TracersToggle.Text = "TR: ON"
+TracersToggle.Size = UDim2.new(0, 55, 0, 22)
+TracersToggle.Position = UDim2.new(0, 65, 0, 25)
+TracersToggle.Text = "TR"
 TracersToggle.TextColor3 = Color3.fromRGB(255,255,255)
 TracersToggle.BackgroundColor3 = Color3.fromRGB(40,40,50)
 TracersToggle.Parent = Frame
 
 local FlightToggle = Instance.new("TextButton")
-FlightToggle.Size = UDim2.new(0, 60, 0, 25)
-FlightToggle.Position = UDim2.new(0, 135, 0, 25)
-FlightToggle.Text = "FLY: OFF"
+FlightToggle.Size = UDim2.new(0, 55, 0, 22)
+FlightToggle.Position = UDim2.new(0, 125, 0, 25)
+FlightToggle.Text = "FLY"
 FlightToggle.TextColor3 = Color3.fromRGB(255,255,255)
 FlightToggle.BackgroundColor3 = Color3.fromRGB(40,40,50)
 FlightToggle.Parent = Frame
 
 local NoclipToggle = Instance.new("TextButton")
-NoclipToggle.Size = UDim2.new(0, 60, 0, 25)
-NoclipToggle.Position = UDim2.new(0, 200, 0, 25)
-NoclipToggle.Text = "NC: OFF"
+NoclipToggle.Size = UDim2.new(0, 55, 0, 22)
+NoclipToggle.Position = UDim2.new(0, 185, 0, 25)
+NoclipToggle.Text = "NC"
 NoclipToggle.TextColor3 = Color3.fromRGB(255,255,255)
 NoclipToggle.BackgroundColor3 = Color3.fromRGB(40,40,50)
 NoclipToggle.Parent = Frame
 
--- TP Tool button (row 2)
+local WallhackToggle = Instance.new("TextButton")
+WallhackToggle.Size = UDim2.new(0, 55, 0, 22)
+WallhackToggle.Position = UDim2.new(0, 245, 0, 25)
+WallhackToggle.Text = "WH"
+WallhackToggle.TextColor3 = Color3.fromRGB(255,255,255)
+WallhackToggle.BackgroundColor3 = Color3.fromRGB(40,40,50)
+WallhackToggle.Parent = Frame
+
+local AntiAFKToggle = Instance.new("TextButton")
+AntiAFKToggle.Size = UDim2.new(0, 55, 0, 22)
+AntiAFKToggle.Position = UDim2.new(0, 305, 0, 25)
+AntiAFKToggle.Text = "AFK"
+AntiAFKToggle.TextColor3 = Color3.fromRGB(255,255,255)
+AntiAFKToggle.BackgroundColor3 = Color3.fromRGB(40,40,50)
+AntiAFKToggle.Parent = Frame
+
+-- TP Tool buttons (row 2)
 local TPToolButton = Instance.new("TextButton")
-TPToolButton.Size = UDim2.new(0, 120, 0, 25)
-TPToolButton.Position = UDim2.new(0, 5, 0, 55)
+TPToolButton.Size = UDim2.new(0, 100, 0, 22)
+TPToolButton.Position = UDim2.new(0, 5, 0, 52)
 TPToolButton.Text = "GET TP TOOL"
 TPToolButton.TextColor3 = Color3.fromRGB(255,255,255)
 TPToolButton.BackgroundColor3 = Color3.fromRGB(40,40,50)
 TPToolButton.Parent = Frame
 
 local TPEnableToggle = Instance.new("TextButton")
-TPEnableToggle.Size = UDim2.new(0, 80, 0, 25)
-TPEnableToggle.Position = UDim2.new(0, 130, 0, 55)
-TPEnableToggle.Text = "TP: OFF"
+TPEnableToggle.Size = UDim2.new(0, 60, 0, 22)
+TPEnableToggle.Position = UDim2.new(0, 110, 0, 52)
+TPEnableToggle.Text = "TP OFF"
 TPEnableToggle.TextColor3 = Color3.fromRGB(255,255,255)
 TPEnableToggle.BackgroundColor3 = Color3.fromRGB(40,40,50)
 TPEnableToggle.Parent = Frame
@@ -129,8 +153,8 @@ TPEnableToggle.Parent = Frame
 -- Speed slider (row 3)
 local SpeedLabel = Instance.new("TextLabel")
 SpeedLabel.Size = UDim2.new(0, 50, 0, 20)
-SpeedLabel.Position = UDim2.new(0, 5, 0, 85)
-SpeedLabel.Text = "SPD: 50"
+SpeedLabel.Position = UDim2.new(0, 5, 0, 80)
+SpeedLabel.Text = "SPD:50"
 SpeedLabel.TextColor3 = Color3.fromRGB(255,255,255)
 SpeedLabel.TextScaled = true
 SpeedLabel.BackgroundTransparency = 1
@@ -138,7 +162,7 @@ SpeedLabel.Parent = Frame
 
 local SpeedSlider = Instance.new("TextBox")
 SpeedSlider.Size = UDim2.new(0, 60, 0, 20)
-SpeedSlider.Position = UDim2.new(0, 60, 0, 85)
+SpeedSlider.Position = UDim2.new(0, 60, 0, 80)
 SpeedSlider.Text = "50"
 SpeedSlider.TextColor3 = Color3.fromRGB(255,255,255)
 SpeedSlider.BackgroundColor3 = Color3.fromRGB(40,40,50)
@@ -148,29 +172,43 @@ SpeedSlider.FocusLost:Connect(function()
     local num = tonumber(SpeedSlider.Text)
     if num and num > 0 and num < 500 then
         flySpeed = num
-        SpeedLabel.Text = "SPD: " .. num
+        SpeedLabel.Text = "SPD:" .. num
     else
         SpeedSlider.Text = tostring(flySpeed)
     end
 end)
 
+-- Status bar (row 4)
+local StatusBar = Instance.new("TextLabel")
+StatusBar.Size = UDim2.new(1, -10, 0, 20)
+StatusBar.Position = UDim2.new(0, 5, 0, 105)
+StatusBar.Text = "STATUS: READY"
+StatusBar.TextColor3 = Color3.fromRGB(150, 150, 150)
+StatusBar.TextScaled = true
+StatusBar.BackgroundTransparency = 1
+StatusBar.Parent = Frame
+
 -- State vars
 local espEnabled = true
 local tracerEnabled = true
+local espLines = {}
+local tracerLines = {}
 
+-- Toggle functions
 EspToggle.MouseButton1Click:Connect(function()
     espEnabled = not espEnabled
-    EspToggle.Text = espEnabled and "ESP: ON" or "ESP: OFF"
+    EspToggle.Text = espEnabled and "ESP" or "OFF"
 end)
 
 TracersToggle.MouseButton1Click:Connect(function()
     tracerEnabled = not tracerEnabled
-    TracersToggle.Text = tracerEnabled and "TR: ON" or "TR: OFF"
+    TracersToggle.Text = tracerEnabled and "TR" or "OFF"
 end)
 
 FlightToggle.MouseButton1Click:Connect(function()
     flightEnabled = not flightEnabled
-    FlightToggle.Text = flightEnabled and "FLY: ON" or "FLY: OFF"
+    FlightToggle.Text = flightEnabled and "FLY" or "OFF"
+    StatusBar.Text = flightEnabled and "STATUS: FLY ON" or "STATUS: FLY OFF"
     
     if flightEnabled then
         local char = LocalPlayer.Character
@@ -190,10 +228,10 @@ FlightToggle.MouseButton1Click:Connect(function()
     end
 end)
 
--- Noclip toggle
 NoclipToggle.MouseButton1Click:Connect(function()
     noclipEnabled = not noclipEnabled
-    NoclipToggle.Text = noclipEnabled and "NC: ON" or "NC: OFF"
+    NoclipToggle.Text = noclipEnabled and "NC" or "OFF"
+    StatusBar.Text = noclipEnabled and "STATUS: NOCLIP ON" or "STATUS: NOCLIP OFF"
     
     if noclipEnabled then
         if noclipConnection then noclipConnection:Disconnect() end
@@ -224,6 +262,156 @@ NoclipToggle.MouseButton1Click:Connect(function()
     end
 end)
 
+-- WALLHACK
+WallhackToggle.MouseButton1Click:Connect(function()
+    wallhackEnabled = not wallhackEnabled
+    WallhackToggle.Text = wallhackEnabled and "WH" or "OFF"
+    StatusBar.Text = wallhackEnabled and "STATUS: WALLHACK ON" or "STATUS: WALLHACK OFF"
+    
+    if wallhackEnabled then
+        -- Создаём Highlight для всех игроков
+        if not highlightHandle then
+            highlightHandle = Instance.new("Highlight")
+            highlightHandle.Name = "WIA_Wallhack"
+            highlightHandle.FillColor = Color3.fromRGB(180, 0, 255)
+            highlightHandle.FillTransparency = 0.3
+            highlightHandle.OutlineColor = Color3.fromRGB(255, 255, 255)
+            highlightHandle.OutlineTransparency = 0.2
+            highlightHandle.DepthMode = Enum.HighlightDepthMode.AlwaysOnTop
+            highlightHandle.Parent = game:GetService("CoreGui")
+        end
+        
+        -- Обновляем список игроков
+        local function updateWallhack()
+            if not wallhackEnabled then return end
+            for _, plr in pairs(Players:GetPlayers()) do
+                if plr ~= LocalPlayer and plr.Character then
+                    if not plr.Character:FindFirstChild("WIA_WH") then
+                        local clone = highlightHandle:Clone()
+                        clone.Name = "WIA_WH"
+                        clone.Parent = plr.Character
+                    end
+                end
+            end
+        end
+        
+        updateWallhack()
+        
+        -- Автообновление при появлении новых игроков
+        Players.PlayerAdded:Connect(function(plr)
+            if wallhackEnabled then
+                plr.CharacterAdded:Connect(function(char)
+                    task.wait(0.5)
+                    if wallhackEnabled and char then
+                        local clone = highlightHandle:Clone()
+                        clone.Name = "WIA_WH"
+                        clone.Parent = char
+                    end
+                end)
+            end
+        end)
+        
+        -- Очистка при смерти
+        local function cleanupCharacters()
+            for _, plr in pairs(Players:GetPlayers()) do
+                if plr ~= LocalPlayer and plr.Character then
+                    local wh = plr.Character:FindFirstChild("WIA_WH")
+                    if wh then wh:Destroy() end
+                end
+            end
+        end
+        
+        -- Обновление каждый раз при респавне
+        LocalPlayer.CharacterAdded:Connect(function()
+            task.wait(0.5)
+            if wallhackEnabled then
+                cleanupCharacters()
+                task.wait(0.2)
+                for _, plr in pairs(Players:GetPlayers()) do
+                    if plr ~= LocalPlayer and plr.Character then
+                        if not plr.Character:FindFirstChild("WIA_WH") then
+                            local clone = highlightHandle:Clone()
+                            clone.Name = "WIA_WH"
+                            clone.Parent = plr.Character
+                        end
+                    end
+                end
+            end
+        end)
+        
+        -- Первичное применение
+        for _, plr in pairs(Players:GetPlayers()) do
+            if plr ~= LocalPlayer and plr.Character then
+                local clone = highlightHandle:Clone()
+                clone.Name = "WIA_WH"
+                clone.Parent = plr.Character
+            end
+        end
+    else
+        -- Удаляем все Highlight
+        for _, plr in pairs(Players:GetPlayers()) do
+            if plr ~= LocalPlayer and plr.Character then
+                local wh = plr.Character:FindFirstChild("WIA_WH")
+                if wh then wh:Destroy() end
+            end
+        end
+    end
+end)
+
+-- ANTI-AFK
+AntiAFKToggle.MouseButton1Click:Connect(function()
+    antiAFKEnabled = not antiAFKEnabled
+    AntiAFKToggle.Text = antiAFKEnabled and "AFK" or "OFF"
+    StatusBar.Text = antiAFKEnabled and "STATUS: AFK ON" or "STATUS: AFK OFF"
+    
+    if antiAFKEnabled then
+        if antiAFKConnection then antiAFKConnection:Disconnect() end
+        
+        -- Цикл анти-AFK
+        antiAFKConnection = RunService.Heartbeat:Connect(function()
+            if not antiAFKEnabled then return end
+            
+            -- Симуляция движения каждые 15 секунд
+            local currentTime = tick()
+            if not antiAFKConnection.lastTime then
+                antiAFKConnection.lastTime = currentTime
+            end
+            
+            if currentTime - antiAFKConnection.lastTime >= 15 then
+                antiAFKConnection.lastTime = currentTime
+                
+                -- Случайное движение
+                local keys = {
+                    Enum.KeyCode.W,
+                    Enum.KeyCode.A,
+                    Enum.KeyCode.S,
+                    Enum.KeyCode.D,
+                    Enum.KeyCode.Space
+                }
+                
+                local key = keys[math.random(1, #keys)]
+                
+                -- Имитируем нажатие и отпускание
+                UserInputService:SetKeyDown(key)
+                task.wait(0.1)
+                UserInputService:SetKeyUp(key)
+                
+                -- Иногда прыжок
+                if math.random(1, 3) == 1 then
+                    UserInputService:SetKeyDown(Enum.KeyCode.Space)
+                    task.wait(0.05)
+                    UserInputService:SetKeyUp(Enum.KeyCode.Space)
+                end
+            end
+        end)
+    else
+        if antiAFKConnection then
+            antiAFKConnection:Disconnect()
+            antiAFKConnection = nil
+        end
+    end
+end)
+
 -- TP Tool functions
 local function createTPTool()
     local tool = Instance.new("Tool")
@@ -238,6 +426,7 @@ local function createTPTool()
         if char and char:FindFirstChild("HumanoidRootPart") then
             local root = char.HumanoidRootPart
             root.CFrame = CFrame.new(targetPos + Vector3.new(0, 3, 0))
+            
             -- Visual feedback
             local part = Instance.new("Part")
             part.Size = Vector3.new(2, 0.5, 2)
@@ -262,15 +451,16 @@ local function createTPTool()
     
     tool.Equipped:Connect(function()
         tpEnabled = true
-        TPEnableToggle.Text = "TP: ON"
-        -- Change mouse icon
+        TPEnableToggle.Text = "TP ON"
         Mouse.Icon = "rbxasset://SystemCursors/Crosshair"
+        StatusBar.Text = "STATUS: TP READY"
     end)
     
     tool.Unequipped:Connect(function()
         tpEnabled = false
-        TPEnableToggle.Text = "TP: OFF"
+        TPEnableToggle.Text = "TP OFF"
         Mouse.Icon = "rbxasset://SystemCursors/Arrow"
+        StatusBar.Text = "STATUS: TP OFF"
     end)
     
     tool.Activated:Connect(function()
@@ -282,34 +472,35 @@ local function createTPTool()
     return tool
 end
 
--- Get TP Tool button
 TPToolButton.MouseButton1Click:Connect(function()
     if tpTool then
         tpTool:Destroy()
         tpTool = nil
         TPToolButton.Text = "GET TP TOOL"
-        TPEnableToggle.Text = "TP: OFF"
+        TPEnableToggle.Text = "TP OFF"
         tpEnabled = false
         Mouse.Icon = "rbxasset://SystemCursors/Arrow"
+        StatusBar.Text = "STATUS: TOOL REMOVED"
         return
     end
     
     tpTool = createTPTool()
     tpTool.Parent = LocalPlayer.Backpack
-    TPToolButton.Text = "REMOVE TOOL"
-    -- Equip automatically
+    TPToolButton.Text = "REMOVE"
+    StatusBar.Text = "STATUS: TP TOOL ADDED"
+    
     local char = LocalPlayer.Character
     if char and char:FindFirstChild("Humanoid") then
         char.Humanoid:EquipTool(tpTool)
     end
 end)
 
--- TP enable toggle
 TPEnableToggle.MouseButton1Click:Connect(function()
     if not tpTool then return end
     tpEnabled = not tpEnabled
-    TPEnableToggle.Text = tpEnabled and "TP: ON" or "TP: OFF"
+    TPEnableToggle.Text = tpEnabled and "TP ON" or "TP OFF"
     Mouse.Icon = tpEnabled and "rbxasset://SystemCursors/Crosshair" or "rbxasset://SystemCursors/Arrow"
+    StatusBar.Text = tpEnabled and "STATUS: TP ACTIVE" or "STATUS: TP INACTIVE"
 end)
 
 -- Flight update
@@ -378,7 +569,6 @@ LocalPlayer.CharacterAdded:Connect(function()
         end
     end
     
-    -- Re-equip TP tool if exists
     if tpTool then
         task.wait(0.5)
         tpTool.Parent = LocalPlayer.Backpack
@@ -387,15 +577,26 @@ LocalPlayer.CharacterAdded:Connect(function()
             char.Humanoid:EquipTool(tpTool)
         end
     end
+    
+    -- Reapply wallhack
+    if wallhackEnabled then
+        task.wait(0.5)
+        for _, plr in pairs(Players:GetPlayers()) do
+            if plr ~= LocalPlayer and plr.Character then
+                if not plr.Character:FindFirstChild("WIA_WH") and highlightHandle then
+                    local clone = highlightHandle:Clone()
+                    clone.Name = "WIA_WH"
+                    clone.Parent = plr.Character
+                end
+            end
+        end
+    end
 end)
 
 -- Purple
 local PURPLE = Color3.fromRGB(180, 0, 255)
 
 -- Drawing
-local espLines = {}
-local tracerLines = {}
-
 RunService.RenderStepped:Connect(function()
     for i = #espLines, 1, -1 do espLines[i]:Remove() espLines[i] = nil end
     for i = #tracerLines, 1, -1 do tracerLines[i]:Remove() tracerLines[i] = nil end
