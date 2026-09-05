@@ -1,4 +1,4 @@
--- WIA HUB :: ESP + Tracers + Flight + Noclip :: whitewia/tordark
+-- WIA HUB :: ESP + Tracers + Flight + Noclip + TP Tool :: whitewia/tordark
 -- Optimized, head ESP, purple theme, draggable, LCTRL hide
 
 local Players = game:GetService("Players")
@@ -6,6 +6,7 @@ local RunService = game:GetService("RunService")
 local UserInputService = game:GetService("UserInputService")
 local LocalPlayer = Players.LocalPlayer
 local Camera = workspace.CurrentCamera
+local Mouse = LocalPlayer:GetMouse()
 
 -- Flight & Noclip variables
 local flightEnabled = false
@@ -15,13 +16,17 @@ local bodyVelocity = nil
 local bodyGyro = nil
 local noclipConnection = nil
 
+-- TP Tool variables
+local tpTool = nil
+local tpEnabled = false
+
 -- GUI (CoreGui)
 local ScreenGui = Instance.new("ScreenGui")
 ScreenGui.Name = "WiaHubGUI"
 ScreenGui.Parent = game:GetService("CoreGui")
 
 local Frame = Instance.new("Frame")
-Frame.Size = UDim2.new(0, 280, 0, 130)
+Frame.Size = UDim2.new(0, 340, 0, 160)
 Frame.Position = UDim2.new(0, 10, 0, 10)
 Frame.BackgroundColor3 = Color3.fromRGB(15, 15, 25)
 Frame.BackgroundTransparency = 0.5
@@ -71,7 +76,7 @@ UserInputService.InputBegan:Connect(function(input, gameProcessed)
     end
 end)
 
--- Buttons (reorganized)
+-- Buttons (row 1)
 local EspToggle = Instance.new("TextButton")
 EspToggle.Size = UDim2.new(0, 60, 0, 25)
 EspToggle.Position = UDim2.new(0, 5, 0, 25)
@@ -104,10 +109,27 @@ NoclipToggle.TextColor3 = Color3.fromRGB(255,255,255)
 NoclipToggle.BackgroundColor3 = Color3.fromRGB(40,40,50)
 NoclipToggle.Parent = Frame
 
--- Speed slider
+-- TP Tool button (row 2)
+local TPToolButton = Instance.new("TextButton")
+TPToolButton.Size = UDim2.new(0, 120, 0, 25)
+TPToolButton.Position = UDim2.new(0, 5, 0, 55)
+TPToolButton.Text = "GET TP TOOL"
+TPToolButton.TextColor3 = Color3.fromRGB(255,255,255)
+TPToolButton.BackgroundColor3 = Color3.fromRGB(40,40,50)
+TPToolButton.Parent = Frame
+
+local TPEnableToggle = Instance.new("TextButton")
+TPEnableToggle.Size = UDim2.new(0, 80, 0, 25)
+TPEnableToggle.Position = UDim2.new(0, 130, 0, 55)
+TPEnableToggle.Text = "TP: OFF"
+TPEnableToggle.TextColor3 = Color3.fromRGB(255,255,255)
+TPEnableToggle.BackgroundColor3 = Color3.fromRGB(40,40,50)
+TPEnableToggle.Parent = Frame
+
+-- Speed slider (row 3)
 local SpeedLabel = Instance.new("TextLabel")
 SpeedLabel.Size = UDim2.new(0, 50, 0, 20)
-SpeedLabel.Position = UDim2.new(0, 5, 0, 55)
+SpeedLabel.Position = UDim2.new(0, 5, 0, 85)
 SpeedLabel.Text = "SPD: 50"
 SpeedLabel.TextColor3 = Color3.fromRGB(255,255,255)
 SpeedLabel.TextScaled = true
@@ -116,7 +138,7 @@ SpeedLabel.Parent = Frame
 
 local SpeedSlider = Instance.new("TextBox")
 SpeedSlider.Size = UDim2.new(0, 60, 0, 20)
-SpeedSlider.Position = UDim2.new(0, 60, 0, 55)
+SpeedSlider.Position = UDim2.new(0, 60, 0, 85)
 SpeedSlider.Text = "50"
 SpeedSlider.TextColor3 = Color3.fromRGB(255,255,255)
 SpeedSlider.BackgroundColor3 = Color3.fromRGB(40,40,50)
@@ -174,7 +196,6 @@ NoclipToggle.MouseButton1Click:Connect(function()
     NoclipToggle.Text = noclipEnabled and "NC: ON" or "NC: OFF"
     
     if noclipEnabled then
-        -- Start noclip loop
         if noclipConnection then noclipConnection:Disconnect() end
         noclipConnection = RunService.Heartbeat:Connect(function()
             if not noclipEnabled then return end
@@ -192,7 +213,6 @@ NoclipToggle.MouseButton1Click:Connect(function()
             noclipConnection:Disconnect()
             noclipConnection = nil
         end
-        -- Reset collision
         local char = LocalPlayer.Character
         if char then
             for _, part in ipairs(char:GetDescendants()) do
@@ -204,7 +224,95 @@ NoclipToggle.MouseButton1Click:Connect(function()
     end
 end)
 
--- Flight update (optimized)
+-- TP Tool functions
+local function createTPTool()
+    local tool = Instance.new("Tool")
+    tool.Name = "WIA_TP_Tool"
+    tool.RequiresHandle = false
+    tool.CanBeDropped = false
+    
+    local function teleport(mousePos)
+        if not tpEnabled then return end
+        local targetPos = mousePos.Hit.Position
+        local char = LocalPlayer.Character
+        if char and char:FindFirstChild("HumanoidRootPart") then
+            local root = char.HumanoidRootPart
+            root.CFrame = CFrame.new(targetPos + Vector3.new(0, 3, 0))
+            -- Visual feedback
+            local part = Instance.new("Part")
+            part.Size = Vector3.new(2, 0.5, 2)
+            part.Position = targetPos
+            part.Anchored = true
+            part.CanCollide = false
+            part.BrickColor = BrickColor.new("Bright violet")
+            part.Material = Enum.Material.Neon
+            part.Transparency = 0.5
+            part.Parent = workspace
+            game:GetService("Debris"):AddItem(part, 0.5)
+            
+            -- Sound
+            local sound = Instance.new("Sound")
+            sound.SoundId = "rbxassetid://9120107390"
+            sound.Volume = 1
+            sound.Parent = root
+            sound:Play()
+            game:GetService("Debris"):AddItem(sound, 1)
+        end
+    end
+    
+    tool.Equipped:Connect(function()
+        tpEnabled = true
+        TPEnableToggle.Text = "TP: ON"
+        -- Change mouse icon
+        Mouse.Icon = "rbxasset://SystemCursors/Crosshair"
+    end)
+    
+    tool.Unequipped:Connect(function()
+        tpEnabled = false
+        TPEnableToggle.Text = "TP: OFF"
+        Mouse.Icon = "rbxasset://SystemCursors/Arrow"
+    end)
+    
+    tool.Activated:Connect(function()
+        if tpEnabled then
+            teleport(Mouse)
+        end
+    end)
+    
+    return tool
+end
+
+-- Get TP Tool button
+TPToolButton.MouseButton1Click:Connect(function()
+    if tpTool then
+        tpTool:Destroy()
+        tpTool = nil
+        TPToolButton.Text = "GET TP TOOL"
+        TPEnableToggle.Text = "TP: OFF"
+        tpEnabled = false
+        Mouse.Icon = "rbxasset://SystemCursors/Arrow"
+        return
+    end
+    
+    tpTool = createTPTool()
+    tpTool.Parent = LocalPlayer.Backpack
+    TPToolButton.Text = "REMOVE TOOL"
+    -- Equip automatically
+    local char = LocalPlayer.Character
+    if char and char:FindFirstChild("Humanoid") then
+        char.Humanoid:EquipTool(tpTool)
+    end
+end)
+
+-- TP enable toggle
+TPEnableToggle.MouseButton1Click:Connect(function()
+    if not tpTool then return end
+    tpEnabled = not tpEnabled
+    TPEnableToggle.Text = tpEnabled and "TP: ON" or "TP: OFF"
+    Mouse.Icon = tpEnabled and "rbxasset://SystemCursors/Crosshair" or "rbxasset://SystemCursors/Arrow"
+end)
+
+-- Flight update
 RunService.Heartbeat:Connect(function()
     if not flightEnabled then return end
     
@@ -230,7 +338,6 @@ RunService.Heartbeat:Connect(function()
         moveDirection = moveDirection.Unit * flySpeed
         bodyVelocity.Velocity = moveDirection
         
-        -- Face movement direction
         local lookAt = root.Position + moveDirection
         local newCFrame = CFrame.new(root.Position, lookAt)
         bodyGyro.CFrame = newCFrame
@@ -241,7 +348,6 @@ end)
 
 -- Cleanup on death
 LocalPlayer.CharacterAdded:Connect(function()
-    -- Reapply flight
     if flightEnabled then
         task.wait(0.5)
         local char = LocalPlayer.Character
@@ -260,7 +366,6 @@ LocalPlayer.CharacterAdded:Connect(function()
         end
     end
     
-    -- Reapply noclip
     if noclipEnabled then
         task.wait(0.3)
         local char = LocalPlayer.Character
@@ -272,17 +377,26 @@ LocalPlayer.CharacterAdded:Connect(function()
             end
         end
     end
+    
+    -- Re-equip TP tool if exists
+    if tpTool then
+        task.wait(0.5)
+        tpTool.Parent = LocalPlayer.Backpack
+        local char = LocalPlayer.Character
+        if char and char:FindFirstChild("Humanoid") then
+            char.Humanoid:EquipTool(tpTool)
+        end
+    end
 end)
 
 -- Purple
 local PURPLE = Color3.fromRGB(180, 0, 255)
 
--- Drawing (optimized)
+-- Drawing
 local espLines = {}
 local tracerLines = {}
 
 RunService.RenderStepped:Connect(function()
-    -- clear old
     for i = #espLines, 1, -1 do espLines[i]:Remove() espLines[i] = nil end
     for i = #tracerLines, 1, -1 do tracerLines[i]:Remove() tracerLines[i] = nil end
     
@@ -302,7 +416,6 @@ RunService.RenderStepped:Connect(function()
                     local dist = (head.Position - camPos).Magnitude
                     local size = math.clamp(100 / dist * 10, 15, 40)
                     
-                    -- ESP box around HEAD
                     if espEnabled then
                         local lines = {
                             Drawing.new("Line"), Drawing.new("Line"),
@@ -327,7 +440,6 @@ RunService.RenderStepped:Connect(function()
                         end
                     end
                     
-                    -- Tracer to HEAD
                     if tracerEnabled then
                         local tracer = Drawing.new("Line")
                         tracer.From = Vector2.new(viewport.X/2, viewport.Y)
