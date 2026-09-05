@@ -1,5 +1,5 @@
 -- WIA HUB :: ESP + Tracers + Flight + Noclip + TP Tool + Wallhack + Anti-AFK :: whitewia/tordark
--- FIXED: Wallhack toggle, cleaner GUI, status bar
+-- TUMBLER SWITCHES VERSION
 
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
@@ -29,24 +29,24 @@ local whHighlights = {}
 local antiAFKEnabled = false
 local antiAFKConnection = nil
 
--- GUI (CoreGui) - CLEANER LAYOUT
+-- GUI (CoreGui) - TUMBLER VERSION
 local ScreenGui = Instance.new("ScreenGui")
 ScreenGui.Name = "WiaHubGUI"
 ScreenGui.Parent = game:GetService("CoreGui")
 
 local Frame = Instance.new("Frame")
-Frame.Size = UDim2.new(0, 320, 0, 145)
+Frame.Size = UDim2.new(0, 340, 0, 200)
 Frame.Position = UDim2.new(0, 10, 0, 10)
 Frame.BackgroundColor3 = Color3.fromRGB(10, 10, 20)
-Frame.BackgroundTransparency = 0.6
+Frame.BackgroundTransparency = 0.65
 Frame.BorderSizePixel = 0
 Frame.Parent = ScreenGui
 
--- Title with underline
+-- Title
 local Title = Instance.new("TextLabel")
-Title.Size = UDim2.new(1, 0, 0, 22)
+Title.Size = UDim2.new(1, 0, 0, 25)
 Title.Position = UDim2.new(0, 0, 0, 0)
-Title.Text = "WIA HUB v3"
+Title.Text = "WIA HUB"
 Title.TextColor3 = Color3.fromRGB(180, 0, 255)
 Title.TextScaled = true
 Title.BackgroundTransparency = 1
@@ -55,9 +55,9 @@ Title.Parent = Frame
 
 local Underline = Instance.new("Frame")
 Underline.Size = UDim2.new(1, -20, 0, 1)
-Underline.Position = UDim2.new(0, 10, 0, 22)
+Underline.Position = UDim2.new(0, 10, 0, 25)
 Underline.BackgroundColor3 = Color3.fromRGB(180, 0, 255)
-Underline.BackgroundTransparency = 0.5
+Underline.BackgroundTransparency = 0.3
 Underline.Parent = Frame
 
 -- Draggable
@@ -94,35 +94,99 @@ UserInputService.InputBegan:Connect(function(input, gameProcessed)
     end
 end)
 
--- Button creation function
-local function createButton(text, x, y, width, parent)
+-- TUMBLER CREATION FUNCTION
+local function createTumbler(labelText, x, y, parent, defaultState)
+    local container = Instance.new("Frame")
+    container.Size = UDim2.new(0, 100, 0, 28)
+    container.Position = UDim2.new(0, x, 0, y)
+    container.BackgroundTransparency = 1
+    container.Parent = parent
+    
+    local label = Instance.new("TextLabel")
+    label.Size = UDim2.new(0, 40, 0, 28)
+    label.Position = UDim2.new(0, 0, 0, 0)
+    label.Text = labelText
+    label.TextColor3 = Color3.fromRGB(255,255,255)
+    label.TextScaled = true
+    label.BackgroundTransparency = 1
+    label.Font = Enum.Font.Gotham
+    label.Parent = container
+    
+    local bg = Instance.new("Frame")
+    bg.Size = UDim2.new(0, 45, 0, 22)
+    bg.Position = UDim2.new(0, 45, 0, 3)
+    bg.BackgroundColor3 = Color3.fromRGB(60, 60, 70)
+    bg.BorderSizePixel = 0
+    bg.Parent = container
+    
+    local knob = Instance.new("Frame")
+    knob.Size = UDim2.new(0, 18, 0, 18)
+    knob.Position = UDim2.new(0, 2, 0, 2)
+    knob.BackgroundColor3 = Color3.fromRGB(200, 200, 200)
+    knob.BorderSizePixel = 0
+    knob.Parent = bg
+    
+    local state = defaultState or false
+    
+    local function updateTumbler()
+        if state then
+            bg.BackgroundColor3 = Color3.fromRGB(100, 200, 100)
+            knob.Position = UDim2.new(0, 25, 0, 2)
+            knob.BackgroundColor3 = Color3.fromRGB(255,255,255)
+        else
+            bg.BackgroundColor3 = Color3.fromRGB(60, 60, 70)
+            knob.Position = UDim2.new(0, 2, 0, 2)
+            knob.BackgroundColor3 = Color3.fromRGB(200, 200, 200)
+        end
+    end
+    
+    updateTumbler()
+    
     local btn = Instance.new("TextButton")
-    btn.Size = UDim2.new(0, width or 55, 0, 22)
-    btn.Position = UDim2.new(0, x, 0, y)
-    btn.Text = text
-    btn.TextColor3 = Color3.fromRGB(255,255,255)
-    btn.BackgroundColor3 = Color3.fromRGB(40,40,55)
-    btn.BorderSizePixel = 0
-    btn.Parent = parent
-    return btn
+    btn.Size = UDim2.new(1, 0, 1, 0)
+    btn.BackgroundTransparency = 1
+    btn.Parent = container
+    
+    local toggleEvent = Instance.new("BindableEvent")
+    btn.MouseButton1Click:Connect(function()
+        state = not state
+        updateTumbler()
+        toggleEvent:Fire(state)
+    end)
+    
+    return {
+        container = container,
+        bg = bg,
+        knob = knob,
+        getState = function() return state end,
+        setState = function(newState)
+            state = newState
+            updateTumbler()
+            toggleEvent:Fire(state)
+        end,
+        onToggle = function(callback)
+            toggleEvent.Event:Connect(callback)
+        end
+    }
 end
 
--- Row 1: ESP | TR | FLY | NC | WH | AFK
-local EspToggle = createButton("ESP", 5, 27, 48, Frame)
-local TracersToggle = createButton("TR", 57, 27, 40, Frame)
-local FlightToggle = createButton("FLY", 101, 27, 45, Frame)
-local NoclipToggle = createButton("NC", 150, 27, 40, Frame)
-local WallhackToggle = createButton("WH", 194, 27, 40, Frame)
-local AntiAFKToggle = createButton("AFK", 238, 27, 40, Frame)
-local TPToggle = createButton("TP", 282, 27, 32, Frame)
+-- Row 1: ESP | TR | FLY
+local espTumbler = createTumbler("ESP", 5, 30, Frame, true)
+local trTumbler = createTumbler("TR", 110, 30, Frame, true)
+local flyTumbler = createTumbler("FLY", 215, 30, Frame, false)
 
--- Row 2: TP Tool button + Speed slider
-local TPToolButton = createButton("GET TP", 5, 53, 85, Frame)
-local TPEnableToggle = createButton("OFF", 94, 53, 45, Frame)
+-- Row 2: NC | WH | AFK
+local ncTumbler = createTumbler("NC", 5, 65, Frame, false)
+local whTumbler = createTumbler("WH", 110, 65, Frame, false)
+local afkTumbler = createTumbler("AFK", 215, 65, Frame, false)
 
+-- Row 3: TP Tool + Speed
+local tpToolTumbler = createTumbler("TP", 5, 100, Frame, false)
+
+-- Speed slider
 local SpeedLabel = Instance.new("TextLabel")
-SpeedLabel.Size = UDim2.new(0, 35, 0, 20)
-SpeedLabel.Position = UDim2.new(0, 150, 0, 54)
+SpeedLabel.Size = UDim2.new(0, 35, 0, 22)
+SpeedLabel.Position = UDim2.new(0, 215, 0, 102)
 SpeedLabel.Text = "SPD"
 SpeedLabel.TextColor3 = Color3.fromRGB(255,255,255)
 SpeedLabel.TextScaled = true
@@ -131,18 +195,38 @@ SpeedLabel.Font = Enum.Font.Gotham
 SpeedLabel.Parent = Frame
 
 local SpeedSlider = Instance.new("TextBox")
-SpeedSlider.Size = UDim2.new(0, 45, 0, 20)
-SpeedSlider.Position = UDim2.new(0, 188, 0, 54)
+SpeedSlider.Size = UDim2.new(0, 50, 0, 22)
+SpeedSlider.Position = UDim2.new(0, 255, 0, 102)
 SpeedSlider.Text = "50"
 SpeedSlider.TextColor3 = Color3.fromRGB(255,255,255)
 SpeedSlider.BackgroundColor3 = Color3.fromRGB(40,40,55)
 SpeedSlider.BorderSizePixel = 0
+SpeedSlider.Font = Enum.Font.Gotham
 SpeedSlider.Parent = Frame
 
--- Status bar (full width)
+-- Row 4: TP Tool button + TP Enable toggle
+local TPToolButton = Instance.new("TextButton")
+TPToolButton.Size = UDim2.new(0, 80, 0, 22)
+TPToolButton.Position = UDim2.new(0, 110, 0, 130)
+TPToolButton.Text = "GET TP"
+TPToolButton.TextColor3 = Color3.fromRGB(255,255,255)
+TPToolButton.BackgroundColor3 = Color3.fromRGB(40,40,55)
+TPToolButton.BorderSizePixel = 0
+TPToolButton.Parent = Frame
+
+local TPEnableToggle = Instance.new("TextButton")
+TPEnableToggle.Size = UDim2.new(0, 50, 0, 22)
+TPEnableToggle.Position = UDim2.new(0, 195, 0, 130)
+TPEnableToggle.Text = "OFF"
+TPEnableToggle.TextColor3 = Color3.fromRGB(255,255,255)
+TPEnableToggle.BackgroundColor3 = Color3.fromRGB(40,40,55)
+TPEnableToggle.BorderSizePixel = 0
+TPEnableToggle.Parent = Frame
+
+-- Status bar
 local StatusBar = Instance.new("TextLabel")
 StatusBar.Size = UDim2.new(1, -10, 0, 18)
-StatusBar.Position = UDim2.new(0, 5, 0, 80)
+StatusBar.Position = UDim2.new(0, 5, 0, 160)
 StatusBar.Text = "READY"
 StatusBar.TextColor3 = Color3.fromRGB(150, 150, 180)
 StatusBar.TextScaled = true
@@ -159,32 +243,25 @@ local tracerLines = {}
 -- Status update
 local function setStatus(text, color)
     StatusBar.Text = text
-    if color then
-        StatusBar.TextColor3 = color
-    else
-        StatusBar.TextColor3 = Color3.fromRGB(150, 150, 180)
-    end
+    StatusBar.TextColor3 = color or Color3.fromRGB(150, 150, 180)
 end
 
--- Toggle functions
-EspToggle.MouseButton1Click:Connect(function()
-    espEnabled = not espEnabled
-    EspToggle.Text = espEnabled and "ESP" or "OFF"
-    setStatus(espEnabled and "ESP ON" or "ESP OFF")
+-- TUMBLER EVENTS
+espTumbler.onToggle(function(state)
+    espEnabled = state
+    setStatus(state and "ESP ON" or "ESP OFF")
 end)
 
-TracersToggle.MouseButton1Click:Connect(function()
-    tracerEnabled = not tracerEnabled
-    TracersToggle.Text = tracerEnabled and "TR" or "OFF"
-    setStatus(tracerEnabled and "TRACERS ON" or "TRACERS OFF")
+trTumbler.onToggle(function(state)
+    tracerEnabled = state
+    setStatus(state and "TRACERS ON" or "TRACERS OFF")
 end)
 
-FlightToggle.MouseButton1Click:Connect(function()
-    flightEnabled = not flightEnabled
-    FlightToggle.Text = flightEnabled and "FLY" or "OFF"
-    setStatus(flightEnabled and "FLY ON" or "FLY OFF", flightEnabled and Color3.fromRGB(0,255,200) or nil)
+flyTumbler.onToggle(function(state)
+    flightEnabled = state
+    setStatus(state and "FLY ON" or "FLY OFF", state and Color3.fromRGB(0,255,200) or nil)
     
-    if flightEnabled then
+    if state then
         local char = LocalPlayer.Character
         if char and char:FindFirstChild("HumanoidRootPart") then
             bodyVelocity = Instance.new("BodyVelocity")
@@ -202,12 +279,11 @@ FlightToggle.MouseButton1Click:Connect(function()
     end
 end)
 
-NoclipToggle.MouseButton1Click:Connect(function()
-    noclipEnabled = not noclipEnabled
-    NoclipToggle.Text = noclipEnabled and "NC" or "OFF"
-    setStatus(noclipEnabled and "NOCLIP ON" or "NOCLIP OFF", noclipEnabled and Color3.fromRGB(0,200,255) or nil)
+ncTumbler.onToggle(function(state)
+    noclipEnabled = state
+    setStatus(state and "NOCLIP ON" or "NOCLIP OFF", state and Color3.fromRGB(0,200,255) or nil)
     
-    if noclipEnabled then
+    if state then
         if noclipConnection then noclipConnection:Disconnect() end
         noclipConnection = RunService.Heartbeat:Connect(function()
             if not noclipEnabled then return end
@@ -236,7 +312,7 @@ NoclipToggle.MouseButton1Click:Connect(function()
     end
 end)
 
--- WALLHACK - FIXED
+-- WALLHACK
 local function clearWallhack()
     for _, conn in pairs(highlightConnections) do
         conn:Disconnect()
@@ -250,7 +326,6 @@ local function clearWallhack()
     end
     whHighlights = {}
     
-    -- Clean all characters
     for _, plr in pairs(Players:GetPlayers()) do
         if plr ~= LocalPlayer and plr.Character then
             local wh = plr.Character:FindFirstChild("WIA_WH")
@@ -261,12 +336,9 @@ end
 
 local function applyWallhackToChar(char)
     if not char or not wallhackEnabled then return end
-    
-    -- Remove old
     local old = char:FindFirstChild("WIA_WH")
     if old then old:Destroy() end
     
-    -- Create new Highlight
     local highlight = Instance.new("Highlight")
     highlight.Name = "WIA_WH"
     highlight.FillColor = Color3.fromRGB(180, 0, 255)
@@ -275,7 +347,6 @@ local function applyWallhackToChar(char)
     highlight.OutlineTransparency = 0.1
     highlight.DepthMode = Enum.HighlightDepthMode.AlwaysOnTop
     highlight.Parent = char
-    
     whHighlights[char] = highlight
 end
 
@@ -284,8 +355,6 @@ local function updateWallhack()
         clearWallhack()
         return
     end
-    
-    -- Apply to all players
     for _, plr in pairs(Players:GetPlayers()) do
         if plr ~= LocalPlayer and plr.Character then
             applyWallhackToChar(plr.Character)
@@ -293,19 +362,14 @@ local function updateWallhack()
     end
 end
 
-WallhackToggle.MouseButton1Click:Connect(function()
-    wallhackEnabled = not wallhackEnabled
-    WallhackToggle.Text = wallhackEnabled and "WH" or "OFF"
-    setStatus(wallhackEnabled and "WALLHACK ON" or "WALLHACK OFF", wallhackEnabled and Color3.fromRGB(180,0,255) or nil)
+whTumbler.onToggle(function(state)
+    wallhackEnabled = state
+    setStatus(state and "WALLHACK ON" or "WALLHACK OFF", state and Color3.fromRGB(180,0,255) or nil)
     
-    if wallhackEnabled then
-        -- Clean old first
+    if state then
         clearWallhack()
-        
-        -- Apply to existing players
         updateWallhack()
         
-        -- Listen for new players
         local conn1 = Players.PlayerAdded:Connect(function(plr)
             local conn2 = plr.CharacterAdded:Connect(function(char)
                 task.wait(0.3)
@@ -317,7 +381,6 @@ WallhackToggle.MouseButton1Click:Connect(function()
         end)
         table.insert(highlightConnections, conn1)
         
-        -- Reapply on respawn
         local conn3 = LocalPlayer.CharacterAdded:Connect(function()
             task.wait(0.5)
             if wallhackEnabled then
@@ -325,39 +388,26 @@ WallhackToggle.MouseButton1Click:Connect(function()
             end
         end)
         table.insert(highlightConnections, conn3)
-        
     else
         clearWallhack()
     end
 end)
 
 -- ANTI-AFK
-AntiAFKToggle.MouseButton1Click:Connect(function()
-    antiAFKEnabled = not antiAFKEnabled
-    AntiAFKToggle.Text = antiAFKEnabled and "AFK" or "OFF"
-    setStatus(antiAFKEnabled and "ANTI-AFK ON" or "ANTI-AFK OFF", antiAFKEnabled and Color3.fromRGB(255,200,0) or nil)
+afkTumbler.onToggle(function(state)
+    antiAFKEnabled = state
+    setStatus(state and "ANTI-AFK ON" or "ANTI-AFK OFF", state and Color3.fromRGB(255,200,0) or nil)
     
-    if antiAFKEnabled then
+    if state then
         if antiAFKConnection then antiAFKConnection:Disconnect() end
-        
         antiAFKConnection = RunService.Heartbeat:Connect(function()
             if not antiAFKEnabled then return end
-            
             if not antiAFKConnection.lastTime then
                 antiAFKConnection.lastTime = tick()
             end
-            
             if tick() - antiAFKConnection.lastTime >= 15 then
                 antiAFKConnection.lastTime = tick()
-                
-                local keys = {
-                    Enum.KeyCode.W,
-                    Enum.KeyCode.A,
-                    Enum.KeyCode.S,
-                    Enum.KeyCode.D,
-                    Enum.KeyCode.Space
-                }
-                
+                local keys = {Enum.KeyCode.W, Enum.KeyCode.A, Enum.KeyCode.S, Enum.KeyCode.D, Enum.KeyCode.Space}
                 local key = keys[math.random(1, #keys)]
                 UserInputService:SetKeyDown(key)
                 task.wait(0.1)
@@ -372,7 +422,7 @@ AntiAFKToggle.MouseButton1Click:Connect(function()
     end
 end)
 
--- TP Tool functions
+-- TP Tool
 local function createTPTool()
     local tool = Instance.new("Tool")
     tool.Name = "WIA_TP"
@@ -423,10 +473,12 @@ local function createTPTool()
     return tool
 end
 
-TPToolButton.MouseButton1Click:Connect(function()
-    if tpTool then
-        tpTool:Destroy()
-        tpTool = nil
+tpToolTumbler.onToggle(function(state)
+    if not state then
+        if tpTool then
+            tpTool:Destroy()
+            tpTool = nil
+        end
         TPToolButton.Text = "GET TP"
         TPEnableToggle.Text = "OFF"
         tpEnabled = false
@@ -435,24 +487,61 @@ TPToolButton.MouseButton1Click:Connect(function()
         return
     end
     
-    tpTool = createTPTool()
-    tpTool.Parent = LocalPlayer.Backpack
-    TPToolButton.Text = "REMOVE"
-    setStatus("TP Tool added to backpack", Color3.fromRGB(0,255,150))
-    
-    local char = LocalPlayer.Character
-    if char and char:FindFirstChild("Humanoid") then
-        char.Humanoid:EquipTool(tpTool)
+    if not tpTool then
+        tpTool = createTPTool()
+        tpTool.Parent = LocalPlayer.Backpack
+        TPToolButton.Text = "REMOVE"
+        setStatus("TP Tool added", Color3.fromRGB(0,255,150))
+        
+        local char = LocalPlayer.Character
+        if char and char:FindFirstChild("Humanoid") then
+            char.Humanoid:EquipTool(tpTool)
+        end
+    else
+        -- If tool exists but tumbler turned on, just equip
+        local char = LocalPlayer.Character
+        if char and char:FindFirstChild("Humanoid") and tpTool then
+            char.Humanoid:EquipTool(tpTool)
+        end
     end
 end)
 
-TPToggle.MouseButton1Click:Connect(function()
+TPToolButton.MouseButton1Click:Connect(function()
+    local state = tpToolTumbler.getState()
+    if state then
+        -- Remove tool
+        if tpTool then
+            tpTool:Destroy()
+            tpTool = nil
+        end
+        TPToolButton.Text = "GET TP"
+        TPEnableToggle.Text = "OFF"
+        tpEnabled = false
+        Mouse.Icon = "rbxasset://SystemCursors/Arrow"
+        setStatus("TP Tool removed")
+        tpToolTumbler.setState(false)
+    else
+        -- Create tool
+        tpTool = createTPTool()
+        tpTool.Parent = LocalPlayer.Backpack
+        TPToolButton.Text = "REMOVE"
+        setStatus("TP Tool added", Color3.fromRGB(0,255,150))
+        tpToolTumbler.setState(true)
+        
+        local char = LocalPlayer.Character
+        if char and char:FindFirstChild("Humanoid") then
+            char.Humanoid:EquipTool(tpTool)
+        end
+    end
+end)
+
+TPEnableToggle.MouseButton1Click:Connect(function()
     if not tpTool then
         setStatus("Get TP Tool first!", Color3.fromRGB(255,100,100))
         return
     end
     tpEnabled = not tpEnabled
-    TPToggle.Text = tpEnabled and "TP" or "OFF"
+    TPEnableToggle.Text = tpEnabled and "ON" or "OFF"
     Mouse.Icon = tpEnabled and "rbxasset://SystemCursors/Crosshair" or "rbxasset://SystemCursors/Arrow"
     setStatus(tpEnabled and "TP ACTIVE" or "TP INACTIVE", tpEnabled and Color3.fromRGB(0,255,150) or nil)
 end)
@@ -462,7 +551,7 @@ SpeedSlider.FocusLost:Connect(function()
     if num and num > 0 and num < 500 then
         flySpeed = num
         SpeedSlider.Text = tostring(num)
-        setStatus("Speed set to " .. num)
+        setStatus("Speed: " .. num)
     else
         SpeedSlider.Text = tostring(flySpeed)
     end
@@ -471,10 +560,8 @@ end)
 -- Flight update
 RunService.Heartbeat:Connect(function()
     if not flightEnabled then return end
-    
     local char = LocalPlayer.Character
     if not char then return end
-    
     local root = char:FindFirstChild("HumanoidRootPart")
     if not root then return end
     
@@ -493,10 +580,8 @@ RunService.Heartbeat:Connect(function()
     if moveDirection.Magnitude > 0 then
         moveDirection = moveDirection.Unit * flySpeed
         bodyVelocity.Velocity = moveDirection
-        
         local lookAt = root.Position + moveDirection
-        local newCFrame = CFrame.new(root.Position, lookAt)
-        bodyGyro.CFrame = newCFrame
+        bodyGyro.CFrame = CFrame.new(root.Position, lookAt)
     else
         bodyVelocity.Velocity = Vector3.new(0, 0, 0)
     end
