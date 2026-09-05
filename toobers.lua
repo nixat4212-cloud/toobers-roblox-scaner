@@ -1,5 +1,5 @@
--- WIA HUB :: FULL GUI WITH SCROLLING + GODMODE + IMPROVED NOCLIP :: whitewia/tordark
--- MM2 MENU REMOVED COMPLETELY
+-- WIA HUB :: FULL GUI + FAKE FRUITS FOR BLOX FRUITS :: whitewia/tordark
+-- ADDED: Fake Fruit visual in inventory (select, equip, but cannot use)
 
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
@@ -7,6 +7,7 @@ local UserInputService = game:GetService("UserInputService")
 local LocalPlayer = Players.LocalPlayer
 local Camera = workspace.CurrentCamera
 local Mouse = LocalPlayer:GetMouse()
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 -- Flight & Noclip variables
 local flightEnabled = false
@@ -49,13 +50,42 @@ local whHighlights = {}
 local antiAFKEnabled = false
 local antiAFKConnection = nil
 
+-- FAKE FRUIT variables
+local fakeFruitEnabled = false
+local selectedFruit = "Buddha"
+local fakeFruitTool = nil
+
+-- Fruit list (visual names)
+local fruitList = {
+    "Buddha",
+    "Flame",
+    "Ice",
+    "Light",
+    "Dark",
+    "Magma",
+    "Rubber",
+    "Barrier",
+    "Ghost",
+    "Spider",
+    "Love",
+    "Venom",
+    "Dragon",
+    "Leopard",
+    "Kitsune",
+    "Yeti",
+    "Gas",
+    "Dough",
+    "Shadow",
+    "Control"
+}
+
 -- GUI (CoreGui) - MAIN
 local ScreenGui = Instance.new("ScreenGui")
 ScreenGui.Name = "WiaHubGUI"
 ScreenGui.Parent = game:GetService("CoreGui")
 
 local MainFrame = Instance.new("Frame")
-MainFrame.Size = UDim2.new(0, 340, 0, 460)
+MainFrame.Size = UDim2.new(0, 340, 0, 520)
 MainFrame.Position = UDim2.new(0, 10, 0, 10)
 MainFrame.BackgroundColor3 = Color3.fromRGB(10, 10, 20)
 MainFrame.BackgroundTransparency = 0.7
@@ -257,6 +287,122 @@ local function createSlider(labelText, x, y, parent, minVal, maxVal, defaultVal,
     }
 end
 
+-- FAKE FRUIT FUNCTIONS
+local function getFruitModel(fruitName)
+    -- Try to find fruit model in game
+    local fruitModel = nil
+    
+    -- Check ReplicatedStorage
+    for _, child in pairs(ReplicatedStorage:GetChildren()) do
+        if child.Name:find(fruitName) or fruitName:find(child.Name) then
+            fruitModel = child
+            break
+        end
+    end
+    
+    -- Check Workspace
+    if not fruitModel then
+        for _, child in pairs(workspace:GetChildren()) do
+            if child.Name:find(fruitName) or fruitName:find(child.Name) then
+                fruitModel = child
+                break
+            end
+        end
+    end
+    
+    return fruitModel
+end
+
+local function createFakeFruit(fruitName)
+    -- Remove existing fake fruit
+    if fakeFruitTool then
+        fakeFruitTool:Destroy()
+        fakeFruitTool = nil
+    end
+    
+    -- Create fake tool
+    local tool = Instance.new("Tool")
+    tool.Name = fruitName
+    tool.RequiresHandle = true
+    tool.CanBeDropped = false
+    
+    -- Try to clone visual from real fruit
+    local fruitModel = getFruitModel(fruitName)
+    if fruitModel then
+        -- Clone the model's handle or primary part
+        local handle = fruitModel:FindFirstChild("Handle") or fruitModel:FindFirstChild("Part") or fruitModel:FindFirstChildWhichIsA("BasePart")
+        if handle then
+            local clone = handle:Clone()
+            clone.Parent = tool
+            tool.Handle = clone
+        else
+            -- Fallback: create simple part
+            local part = Instance.new("Part")
+            part.Name = "Handle"
+            part.Size = Vector3.new(2, 2, 2)
+            part.Shape = Enum.PartType.Ball
+            part.BrickColor = BrickColor.new("Bright violet")
+            part.Material = Enum.Material.Neon
+            part.Parent = tool
+            tool.Handle = part
+        end
+    else
+        -- Fallback: simple visual
+        local part = Instance.new("Part")
+        part.Name = "Handle"
+        part.Size = Vector3.new(2, 2, 2)
+        part.Shape = Enum.PartType.Ball
+        part.BrickColor = BrickColor.new("Bright violet")
+        part.Material = Enum.Material.Neon
+        part.Parent = tool
+        tool.Handle = part
+    end
+    
+    -- Block usage
+    tool.Equipped:Connect(function()
+        setStatus("Fake fruit cannot be used! Visual only.", Color3.fromRGB(255, 200, 0))
+        -- Unequip after 0.5 seconds
+        task.wait(0.5)
+        local char = LocalPlayer.Character
+        if char then
+            local hum = char:FindFirstChild("Humanoid")
+            if hum then
+                hum:UnequipTools()
+            end
+        end
+    end)
+    
+    tool.Activated:Connect(function()
+        setStatus("Fake fruit cannot be used! Visual only.", Color3.fromRGB(255, 200, 0))
+    end)
+    
+    return tool
+end
+
+local function spawnFakeFruit()
+    if not fakeFruitEnabled then return end
+    
+    -- Remove old
+    if fakeFruitTool then
+        fakeFruitTool:Destroy()
+        fakeFruitTool = nil
+    end
+    
+    -- Remove any existing fake fruit from backpack
+    for _, item in pairs(LocalPlayer.Backpack:GetChildren()) do
+        if item:IsA("Tool") and item.Name == selectedFruit then
+            item:Destroy()
+        end
+    end
+    
+    -- Create and add
+    fakeFruitTool = createFakeFruit(selectedFruit)
+    fakeFruitTool.Parent = LocalPlayer.Backpack
+    
+    setStatus("Fake " .. selectedFruit .. " added to inventory!", Color3.fromRGB(0, 255, 150))
+end
+
+-- GUI ELEMENTS
 -- ROW 1: ESP
 local espTumbler = createTumbler("ESP Box", 10, 5, Container, true)
 -- ROW 2: Tracers
@@ -275,11 +421,52 @@ local afkTumbler = createTumbler("Anti-AFK", 10, 215, Container, false)
 local godTumbler = createTumbler("Godmode", 10, 250, Container, false)
 -- ROW 9: Infinite Jump
 local infJumpTumbler = createTumbler("Infinite Jump", 10, 285, Container, false)
--- ROW 10: TP Tool
-local tpToolTumbler = createTumbler("TP Tool", 10, 320, Container, false)
+-- ROW 10: Fake Fruit
+local fruitTumbler = createTumbler("Fake Fruit", 10, 320, Container, false)
+
+-- Fruit selection dropdown (using buttons)
+local FruitContainer = Instance.new("Frame")
+FruitContainer.Size = UDim2.new(0, 160, 0, 60)
+FruitContainer.Position = UDim2.new(0, 10, 0, 355)
+FruitContainer.BackgroundTransparency = 1
+FruitContainer.Parent = Container
+
+local FruitLabel = Instance.new("TextLabel")
+FruitLabel.Size = UDim2.new(0, 60, 0, 25)
+FruitLabel.Position = UDim2.new(0, 0, 0, 0)
+FruitLabel.Text = "Fruit:"
+FruitLabel.TextColor3 = Color3.fromRGB(255,255,255)
+FruitLabel.TextScaled = true
+FruitLabel.BackgroundTransparency = 1
+FruitLabel.Font = Enum.Font.Gotham
+FruitLabel.TextXAlignment = Enum.TextXAlignment.Left
+FruitLabel.Parent = FruitContainer
+
+local FruitSelect = Instance.new("TextBox")
+FruitSelect.Size = UDim2.new(0, 90, 0, 25)
+FruitSelect.Position = UDim2.new(0, 65, 0, 0)
+FruitSelect.Text = "Buddha"
+FruitSelect.TextColor3 = Color3.fromRGB(255,255,255)
+FruitSelect.BackgroundColor3 = Color3.fromRGB(40,40,55)
+FruitSelect.BorderSizePixel = 0
+FruitSelect.Font = Enum.Font.Gotham
+FruitSelect.Parent = FruitContainer
+
+local SpawnButton = Instance.new("TextButton")
+SpawnButton.Size = UDim2.new(0, 90, 0, 25)
+SpawnButton.Position = UDim2.new(0, 65, 0, 30)
+SpawnButton.Text = "Spawn Fruit"
+SpawnButton.TextColor3 = Color3.fromRGB(255,255,255)
+SpawnButton.BackgroundColor3 = Color3.fromRGB(100, 0, 200)
+SpawnButton.BorderSizePixel = 0
+SpawnButton.Font = Enum.Font.Gotham
+SpawnButton.Parent = FruitContainer
+
+-- TP Tool
+local tpToolTumbler = createTumbler("TP Tool", 10, 420, Container, false)
 
 -- Speed Controls
-local wsSlider = createSlider("Walk Speed", 10, 355, Container, 10, 200, 16, function(val)
+local wsSlider = createSlider("Walk Speed", 10, 455, Container, 10, 200, 16, function(val)
     walkSpeedValue = val
     if walkSpeedEnabled then
         local char = LocalPlayer.Character
@@ -292,7 +479,7 @@ local wsSlider = createSlider("Walk Speed", 10, 355, Container, 10, 200, 16, fun
     end
 end)
 
-local jpSlider = createSlider("Jump Power", 10, 390, Container, 10, 200, 50, function(val)
+local jpSlider = createSlider("Jump Power", 10, 490, Container, 10, 200, 50, function(val)
     jumpPowerValue = val
     if jumpPowerEnabled then
         local char = LocalPlayer.Character
@@ -308,7 +495,7 @@ end)
 -- Fly Speed
 local SpeedContainer = Instance.new("Frame")
 SpeedContainer.Size = UDim2.new(0, 160, 0, 30)
-SpeedContainer.Position = UDim2.new(0, 10, 0, 425)
+SpeedContainer.Position = UDim2.new(0, 10, 0, 525)
 SpeedContainer.BackgroundTransparency = 1
 SpeedContainer.Parent = Container
 
@@ -336,7 +523,7 @@ SpeedSlider.Parent = SpeedContainer
 -- TP Controls
 local TPControls = Instance.new("Frame")
 TPControls.Size = UDim2.new(0, 160, 0, 30)
-TPControls.Position = UDim2.new(0, 10, 0, 460)
+TPControls.Position = UDim2.new(0, 10, 0, 560)
 TPControls.BackgroundTransparency = 1
 TPControls.Parent = Container
 
@@ -363,7 +550,7 @@ TPEnableToggle.Parent = TPControls
 -- Status bar
 local StatusBar = Instance.new("TextLabel")
 StatusBar.Size = UDim2.new(1, -20, 0, 25)
-StatusBar.Position = UDim2.new(0, 10, 0, 495)
+StatusBar.Position = UDim2.new(0, 10, 0, 595)
 StatusBar.Text = "Ready"
 StatusBar.TextColor3 = Color3.fromRGB(150, 150, 180)
 StatusBar.TextScaled = true
@@ -740,6 +927,49 @@ infJumpTumbler.onToggle(function(state)
             end
         end)
     end
+end)
+
+-- FAKE FRUIT
+fruitTumbler.onToggle(function(state)
+    fakeFruitEnabled = state
+    setStatus(state and "Fake Fruit ON - Select fruit and spawn!" or "Fake Fruit OFF", state and Color3.fromRGB(255, 150, 0) or nil)
+    
+    if not state then
+        if fakeFruitTool then
+            fakeFruitTool:Destroy()
+            fakeFruitTool = nil
+        end
+        -- Remove from backpack
+        for _, item in pairs(LocalPlayer.Backpack:GetChildren()) do
+            if item:IsA("Tool") and item.Name == selectedFruit then
+                item:Destroy()
+            end
+        end
+    end
+end)
+
+-- Fruit selection
+FruitSelect.FocusLost:Connect(function()
+    local input = FruitSelect.Text
+    for _, fruit in pairs(fruitList) do
+        if input:lower() == fruit:lower() then
+            selectedFruit = fruit
+            FruitSelect.Text = fruit
+            setStatus("Selected: " .. fruit)
+            return
+        end
+    end
+    FruitSelect.Text = selectedFruit
+    setStatus("Invalid fruit! Using: " .. selectedFruit, Color3.fromRGB(255, 100, 100))
+end)
+
+-- Spawn button
+SpawnButton.MouseButton1Click:Connect(function()
+    if not fakeFruitEnabled then
+        setStatus("Enable Fake Fruit first!", Color3.fromRGB(255, 100, 100))
+        return
+    end
+    spawnFakeFruit()
 end)
 
 -- TP Tool functions
