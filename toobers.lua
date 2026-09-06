@@ -1,4 +1,4 @@
--- WIA HUB :: FULL GUI + PLAYER LIST + ANTI-VOID + FULLBRIGHT + FOV + HITBOX + AUTOCLICKER + CHAT SPAM + BHOP + ANTI-FALL :: whitewia/tordark
+-- WIA HUB :: FULL GUI + AIMBOT + PLAYER LIST (TARGET SELECT) + FIXED FOV :: whitewia/tordark
 
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
@@ -52,21 +52,19 @@ local antiAFKConnection = nil
 
 -- Player List variables
 local playerListEnabled = false
-local playerListFrame = nil
 local playerListScrollingFrame = nil
 local playerButtons = {}
 
 -- Anti-Void variables
 local antiVoidEnabled = false
 local antiVoidConnection = nil
-local spawnPosition = nil
 
 -- FullBright variables
 local fullBrightEnabled = false
 local originalBrightness = nil
 local originalAmbient = nil
 
--- FOV variables
+-- FOV variables (FIXED)
 local fovEnabled = false
 local fovValue = 90
 local originalFOV = 70
@@ -95,13 +93,21 @@ local bhopConnection = nil
 local antiFallEnabled = false
 local antiFallConnection = nil
 
--- GUI (CoreGui) - MAIN
+-- ========== AIMBOT VARIABLES ==========
+local aimbotEnabled = false
+local aimbotTarget = nil
+local aimbotFOV = 90
+local aimbotSmoothness = 5
+local aimbotSelectedTarget = nil -- Для выбора цели из списка
+local aimbotTargetList = {} -- Список целей для выбора
+
+-- ========== GUI (CoreGui) ==========
 local ScreenGui = Instance.new("ScreenGui")
 ScreenGui.Name = "WiaHubGUI"
 ScreenGui.Parent = game:GetService("CoreGui")
 
 local MainFrame = Instance.new("Frame")
-MainFrame.Size = UDim2.new(0, 340, 0, 650)
+MainFrame.Size = UDim2.new(0, 340, 0, 720)
 MainFrame.Position = UDim2.new(0, 10, 0, 10)
 MainFrame.BackgroundColor3 = Color3.fromRGB(10, 10, 20)
 MainFrame.BackgroundTransparency = 0.7
@@ -113,7 +119,7 @@ MainFrame.Parent = ScreenGui
 local Title = Instance.new("TextLabel")
 Title.Size = UDim2.new(1, 0, 0, 30)
 Title.Position = UDim2.new(0, 0, 0, 0)
-Title.Text = "WIA HUB v6"
+Title.Text = "WIA HUB v7"
 Title.TextColor3 = Color3.fromRGB(180, 0, 255)
 Title.TextScaled = true
 Title.BackgroundTransparency = 1
@@ -150,7 +156,7 @@ PlayerListGui.Parent = game:GetService("CoreGui")
 PlayerListGui.Enabled = false
 
 local PlayerListMain = Instance.new("Frame")
-PlayerListMain.Size = UDim2.new(0, 250, 0, 350)
+PlayerListMain.Size = UDim2.new(0, 260, 0, 400)
 PlayerListMain.Position = UDim2.new(0, 360, 0, 10)
 PlayerListMain.BackgroundColor3 = Color3.fromRGB(10, 10, 25)
 PlayerListMain.BackgroundTransparency = 0.8
@@ -160,9 +166,9 @@ PlayerListMain.ClipsDescendants = true
 PlayerListMain.Parent = PlayerListGui
 
 local PlayerListTitle = Instance.new("TextLabel")
-PlayerListTitle.Size = UDim2.new(1, 0, 0, 25)
+PlayerListTitle.Size = UDim2.new(1, 0, 0, 30)
 PlayerListTitle.Position = UDim2.new(0, 0, 0, 0)
-PlayerListTitle.Text = "PLAYER LIST"
+PlayerListTitle.Text = "PLAYER LIST / AIM TARGET"
 PlayerListTitle.TextColor3 = Color3.fromRGB(180, 0, 255)
 PlayerListTitle.TextScaled = true
 PlayerListTitle.BackgroundTransparency = 1
@@ -171,14 +177,14 @@ PlayerListTitle.Parent = PlayerListMain
 
 local PlayerListUnderline = Instance.new("Frame")
 PlayerListUnderline.Size = UDim2.new(1, -20, 0, 1)
-PlayerListUnderline.Position = UDim2.new(0, 10, 0, 25)
+PlayerListUnderline.Position = UDim2.new(0, 10, 0, 30)
 PlayerListUnderline.BackgroundColor3 = Color3.fromRGB(180, 0, 255)
 PlayerListUnderline.BackgroundTransparency = 0.3
 PlayerListUnderline.Parent = PlayerListMain
 
 playerListScrollingFrame = Instance.new("ScrollingFrame")
-playerListScrollingFrame.Size = UDim2.new(1, -10, 1, -30)
-playerListScrollingFrame.Position = UDim2.new(0, 5, 0, 28)
+playerListScrollingFrame.Size = UDim2.new(1, -10, 1, -40)
+playerListScrollingFrame.Position = UDim2.new(0, 5, 0, 35)
 playerListScrollingFrame.BackgroundTransparency = 1
 playerListScrollingFrame.BorderSizePixel = 0
 playerListScrollingFrame.ScrollBarThickness = 4
@@ -189,6 +195,17 @@ local PlayerListContainer = Instance.new("Frame")
 PlayerListContainer.Size = UDim2.new(1, 0, 0, 0)
 PlayerListContainer.BackgroundTransparency = 1
 PlayerListContainer.Parent = playerListScrollingFrame
+
+-- Aimbot target indicator
+local TargetStatus = Instance.new("TextLabel")
+TargetStatus.Size = UDim2.new(1, -20, 0, 25)
+TargetStatus.Position = UDim2.new(0, 10, 1, -30)
+TargetStatus.BackgroundTransparency = 1
+TargetStatus.Text = "No target selected"
+TargetStatus.TextColor3 = Color3.fromRGB(200, 200, 200)
+TargetStatus.Font = Enum.Font.Gotham
+TargetStatus.TextSize = 12
+TargetStatus.Parent = PlayerListMain
 
 -- Draggable for player list
 local plDragging = false
@@ -249,7 +266,7 @@ UserInputService.InputBegan:Connect(function(input, gameProcessed)
     end
 end)
 
--- TUMBLER CREATION
+-- ========== TUMBLER CREATION ==========
 local function createTumbler(labelText, x, y, parent, defaultState)
     local container = Instance.new("Frame")
     container.Size = UDim2.new(0, 160, 0, 30)
@@ -326,7 +343,7 @@ local function createTumbler(labelText, x, y, parent, defaultState)
     }
 end
 
--- SLIDER CREATION
+-- ========== SLIDER CREATION ==========
 local function createSlider(labelText, x, y, parent, minVal, maxVal, defaultVal, callback)
     local container = Instance.new("Frame")
     container.Size = UDim2.new(0, 160, 0, 30)
@@ -375,22 +392,22 @@ local function createSlider(labelText, x, y, parent, minVal, maxVal, defaultVal,
     }
 end
 
--- PLAYER LIST FUNCTIONS
+-- ========== PLAYER LIST / AIMBOT TARGET FUNCTIONS ==========
 local function updatePlayerList()
     for _, btn in pairs(playerButtons) do
         btn:Destroy()
     end
     playerButtons = {}
-    
+
     local players = Players:GetPlayers()
     local y = 0
-    
+
     for _, plr in pairs(players) do
         if plr ~= LocalPlayer then
             local btn = Instance.new("TextButton")
             btn.Size = UDim2.new(1, 0, 0, 25)
             btn.Position = UDim2.new(0, 0, 0, y)
-            btn.Text = plr.Name .. "  [TP]"
+            btn.Text = plr.Name .. "  [TP]  [AIM]"
             btn.TextColor3 = Color3.fromRGB(255,255,255)
             btn.BackgroundColor3 = Color3.fromRGB(40,40,55)
             btn.BorderSizePixel = 0
@@ -398,13 +415,17 @@ local function updatePlayerList()
             btn.TextScaled = true
             btn.Parent = PlayerListContainer
             
+            -- Сохраняем игрока в кнопку
+            btn:SetAttribute("PlayerName", plr.Name)
+
             btn.MouseEnter:Connect(function()
                 btn.BackgroundColor3 = Color3.fromRGB(80,0,120)
             end)
             btn.MouseLeave:Connect(function()
                 btn.BackgroundColor3 = Color3.fromRGB(40,40,55)
             end)
-            
+
+            -- Левый клик: телепорт
             btn.MouseButton1Click:Connect(function()
                 local char = plr.Character
                 if char then
@@ -417,7 +438,7 @@ local function updatePlayerList()
                             if myRoot then
                                 myRoot.CFrame = CFrame.new(playerPos + Vector3.new(0, 3, 0))
                                 setStatus("Teleported to " .. plr.Name, Color3.fromRGB(0,255,150))
-                                
+
                                 local part = Instance.new("Part")
                                 part.Size = Vector3.new(2, 0.5, 2)
                                 part.Position = playerPos
@@ -435,16 +456,83 @@ local function updatePlayerList()
                     setStatus(plr.Name .. " has no character!", Color3.fromRGB(255,100,100))
                 end
             end)
-            
+
+            -- Правый клик: выбрать цель для аимбота
+            btn.MouseButton2Click:Connect(function()
+                aimbotSelectedTarget = plr
+                TargetStatus.Text = "Target: " .. plr.Name
+                TargetStatus.TextColor3 = Color3.fromRGB(0, 255, 100)
+                setStatus("Aimbot target set to: " .. plr.Name, Color3.fromRGB(0, 255, 150))
+                
+                -- Визуальное выделение
+                for _, b in pairs(playerButtons) do
+                    b.BackgroundColor3 = Color3.fromRGB(40,40,55)
+                end
+                btn.BackgroundColor3 = Color3.fromRGB(0, 100, 50)
+            end)
+
             table.insert(playerButtons, btn)
             y = y + 27
         end
     end
-    
+
     PlayerListContainer.Size = UDim2.new(1, 0, 0, y + 5)
     playerListScrollingFrame.CanvasSize = UDim2.new(0, 0, 0, y + 10)
 end
 
+-- ========== AIMBOT FUNCTIONS ==========
+local function getAimbotTarget()
+    if aimbotSelectedTarget then
+        return aimbotSelectedTarget
+    end
+    
+    local closest = nil
+    local minDist = aimbotFOV
+    local localPos = LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart")
+    if not localPos then return nil end
+    
+    for _, plr in pairs(Players:GetPlayers()) do
+        if plr ~= LocalPlayer and plr.Character then
+            local head = plr.Character:FindFirstChild("Head")
+            if head then
+                local pos, onScreen = Camera:WorldToScreenPoint(head.Position)
+                if onScreen then
+                    local dist = (Vector2.new(pos.X, pos.Y) - Vector2.new(Mouse.X, Mouse.Y)).Magnitude
+                    if dist < minDist then
+                        minDist = dist
+                        closest = plr
+                    end
+                end
+            end
+        end
+    end
+    return closest
+end
+
+local function aimbotLoop()
+    if not aimbotEnabled then return end
+    
+    local target = getAimbotTarget()
+    if target and target.Character then
+        local head = target.Character:FindFirstChild("Head")
+        if head then
+            local targetPos = head.Position
+            local currentCFrame = Camera.CFrame
+            local newCFrame = CFrame.new(currentCFrame.Position, targetPos)
+            
+            -- Плавность
+            if aimbotSmoothness > 1 then
+                local lerpFactor = 1 / aimbotSmoothness
+                local lerpedCFrame = currentCFrame:Lerp(newCFrame, lerpFactor)
+                Camera.CFrame = lerpedCFrame
+            else
+                Camera.CFrame = newCFrame
+            end
+        end
+    end
+end
+
+-- ========== ФУНКЦИИ (остальные) ==========
 -- ANTI-VOID
 local function toggleAntiVoid(state)
     antiVoidEnabled = state
@@ -488,7 +576,7 @@ local function toggleFullBright(state)
     end
 end
 
--- FOV
+-- FOV (FIXED)
 local function toggleFOV(state)
     fovEnabled = state
     if state then
@@ -590,7 +678,13 @@ local function toggleChatSpam(state)
             if tick() - chatSpamConnection.lastTime >= chatSpamDelay then
                 chatSpamConnection.lastTime = tick()
                 local args = {[1] = chatSpamMessage}
-                game:GetService("ReplicatedStorage"):FindFirstChild("DefaultChatSystemChatEvents"):FindFirstChild("SayMessageRequest"):FireServer(unpack(args))
+                local chatEvent = ReplicatedStorage:FindFirstChild("DefaultChatSystemChatEvents")
+                if chatEvent then
+                    local sayEvent = chatEvent:FindFirstChild("SayMessageRequest")
+                    if sayEvent then
+                        sayEvent:FireServer(unpack(args))
+                    end
+                end
             end
         end)
     else
@@ -655,6 +749,7 @@ local function toggleAntiFall(state)
     end
 end
 
+-- ========== GUI ELEMENTS ==========
 -- ROW 1: ESP
 local espTumbler = createTumbler("ESP Box", 10, 5, Container, true)
 -- ROW 2: Tracers
@@ -692,8 +787,22 @@ local afallTumbler = createTumbler("Anti-Fall", 10, 565, Container, false)
 -- ROW 18: TP Tool
 local tpToolTumbler = createTumbler("TP Tool", 10, 600, Container, false)
 
+-- ========== AIMBOT CONTROLS ==========
+-- Aimbot Tumbler
+local aimbotTumbler = createTumbler("Aimbot", 10, 635, Container, false)
+
+-- Aimbot FOV Slider
+local aimbotFOVSlider = createSlider("Aim FOV", 10, 670, Container, 10, 180, 90, function(val)
+    aimbotFOV = val
+end)
+
+-- Aimbot Smoothness Slider
+local aimbotSmoothSlider = createSlider("Aim Smooth", 10, 705, Container, 1, 20, 5, function(val)
+    aimbotSmoothness = val
+end)
+
 -- Speed Controls
-local wsSlider = createSlider("Walk Speed", 10, 635, Container, 10, 200, 16, function(val)
+local wsSlider = createSlider("Walk Speed", 10, 740, Container, 10, 200, 16, function(val)
     walkSpeedValue = val
     if walkSpeedEnabled then
         local char = LocalPlayer.Character
@@ -706,7 +815,7 @@ local wsSlider = createSlider("Walk Speed", 10, 635, Container, 10, 200, 16, fun
     end
 end)
 
-local jpSlider = createSlider("Jump Power", 10, 670, Container, 10, 200, 50, function(val)
+local jpSlider = createSlider("Jump Power", 10, 775, Container, 10, 200, 50, function(val)
     jumpPowerValue = val
     if jumpPowerEnabled then
         local char = LocalPlayer.Character
@@ -719,15 +828,15 @@ local jpSlider = createSlider("Jump Power", 10, 670, Container, 10, 200, 50, fun
     end
 end)
 
--- FOV Slider
-local fovSlider = createSlider("FOV", 10, 705, Container, 50, 120, 70, function(val)
+-- FOV Slider (FIXED)
+local fovSlider = createSlider("FOV", 10, 810, Container, 50, 120, 70, function(val)
     setFOV(val)
 end)
 
 -- Fly Speed
 local SpeedContainer = Instance.new("Frame")
 SpeedContainer.Size = UDim2.new(0, 160, 0, 30)
-SpeedContainer.Position = UDim2.new(0, 10, 0, 740)
+SpeedContainer.Position = UDim2.new(0, 10, 0, 845)
 SpeedContainer.BackgroundTransparency = 1
 SpeedContainer.Parent = Container
 
@@ -753,28 +862,24 @@ SpeedSlider.Font = Enum.Font.Gotham
 SpeedSlider.Parent = SpeedContainer
 
 -- Hitbox Size Slider
-local hbSlider = createSlider("Hitbox Size", 10, 775, Container, 2, 15, 5, function(val)
+local hbSlider = createSlider("Hitbox Size", 10, 880, Container, 2, 15, 5, function(val)
     setHitboxSize(val)
 end)
 
 -- AutoClicker Delay Slider
-local acSlider = createSlider("Click Delay(ms)", 10, 810, Container, 10, 1000, 100, function(val)
+local acSlider = createSlider("Click Delay(ms)", 10, 915, Container, 10, 1000, 100, function(val)
     setAutoClickerDelay(val)
 end)
 
 -- Chat Spam Settings
-local csMsgSlider = createSlider("Spam Msg", 10, 845, Container, 1, 50, 5, function(val)
-    -- Placeholder for message
-end)
-
-local csDelaySlider = createSlider("Spam Delay(s)", 10, 880, Container, 1, 60, 5, function(val)
+local csDelaySlider = createSlider("Spam Delay(s)", 10, 950, Container, 1, 60, 5, function(val)
     setChatSpamDelay(val)
 end)
 
 -- TP Controls
 local TPControls = Instance.new("Frame")
 TPControls.Size = UDim2.new(0, 160, 0, 30)
-TPControls.Position = UDim2.new(0, 10, 0, 915)
+TPControls.Position = UDim2.new(0, 10, 0, 985)
 TPControls.BackgroundTransparency = 1
 TPControls.Parent = Container
 
@@ -801,7 +906,7 @@ TPEnableToggle.Parent = TPControls
 -- Status bar
 local StatusBar = Instance.new("TextLabel")
 StatusBar.Size = UDim2.new(1, -20, 0, 25)
-StatusBar.Position = UDim2.new(0, 10, 0, 950)
+StatusBar.Position = UDim2.new(0, 10, 0, 1020)
 StatusBar.Text = "Ready"
 StatusBar.TextColor3 = Color3.fromRGB(150, 150, 180)
 StatusBar.TextScaled = true
@@ -809,7 +914,7 @@ StatusBar.BackgroundTransparency = 1
 StatusBar.Font = Enum.Font.Gotham
 StatusBar.Parent = Container
 
--- Update canvas size
+-- ========== UPDATE CANVAS ==========
 local function updateCanvas()
     local children = Container:GetChildren()
     local maxY = 0
@@ -833,19 +938,19 @@ local function updateCanvas()
     ScrollingFrame.CanvasSize = UDim2.new(0, 0, 0, maxY + 30)
 end
 
--- State vars
+-- ========== STATE VARS ==========
 local espEnabled = true
 local tracerEnabled = true
 local espLines = {}
 local tracerLines = {}
 
--- Status update
+-- ========== STATUS UPDATE ==========
 local function setStatus(text, color)
     StatusBar.Text = text
     StatusBar.TextColor3 = color or Color3.fromRGB(150, 150, 180)
 end
 
--- IMPROVED NOCLIP FUNCTIONS
+-- ========== NOCLIP FUNCTIONS ==========
 local function enableNoclipForce()
     if noclipForceConnection then noclipForceConnection:Disconnect() end
     noclipForceConnection = RunService.Heartbeat:Connect(function()
@@ -854,19 +959,19 @@ local function enableNoclipForce()
         if not char then return end
         local root = char:FindFirstChild("HumanoidRootPart")
         if not root then return end
-        
+
         local moveDirection = Vector3.new(0, 0, 0)
         local forward = Camera.CFrame.LookVector
         local right = Camera.CFrame.RightVector
         local up = Camera.CFrame.UpVector
-        
+
         if UserInputService:IsKeyDown(Enum.KeyCode.W) then moveDirection = moveDirection + forward end
         if UserInputService:IsKeyDown(Enum.KeyCode.S) then moveDirection = moveDirection - forward end
         if UserInputService:IsKeyDown(Enum.KeyCode.A) then moveDirection = moveDirection - right end
         if UserInputService:IsKeyDown(Enum.KeyCode.D) then moveDirection = moveDirection + right end
         if UserInputService:IsKeyDown(Enum.KeyCode.Space) then moveDirection = moveDirection + up end
         if UserInputService:IsKeyDown(Enum.KeyCode.LeftShift) then moveDirection = moveDirection - up end
-        
+
         if moveDirection.Magnitude > 0 then
             local speed = flySpeed * 0.5
             local newPos = root.Position + moveDirection.Unit * speed
@@ -875,7 +980,7 @@ local function enableNoclipForce()
     end)
 end
 
--- GODMODE FUNCTIONS
+-- ========== GODMODE FUNCTIONS ==========
 local function enableGodmode()
     local char = LocalPlayer.Character
     if not char then return end
@@ -935,7 +1040,7 @@ local function disableGodmode()
     godmodeHumanoid = nil
 end
 
--- TUMBLER EVENTS
+-- ========== TUMBLER EVENTS ==========
 espTumbler.onToggle(function(state)
     espEnabled = state
     setStatus(state and "ESP ON" or "ESP OFF")
@@ -968,7 +1073,6 @@ flyTumbler.onToggle(function(state)
     end
 end)
 
--- NOCLIP IMPROVED
 ncTumbler.onToggle(function(state)
     noclipEnabled = state
     setStatus(state and "Noclip ON" or "Noclip OFF", state and Color3.fromRGB(0,200,255) or nil)
@@ -1021,11 +1125,10 @@ ncTumbler.onToggle(function(state)
     end
 end)
 
--- NOCLIP FORCE MODE
 ncForceTumbler.onToggle(function(state)
     noclipForceMode = state
     setStatus(state and "Noclip Force ON - Move through walls with WASD" or "Noclip Force OFF", state and Color3.fromRGB(255, 150, 0) or nil)
-    
+
     if state and noclipEnabled then
         enableNoclipForce()
     else
@@ -1036,7 +1139,7 @@ ncForceTumbler.onToggle(function(state)
     end
 end)
 
--- WALLHACK
+-- ========== WALLHACK ==========
 local function clearWallhack()
     for _, conn in pairs(highlightConnections) do
         conn:Disconnect()
@@ -1117,7 +1220,7 @@ whTumbler.onToggle(function(state)
     end
 end)
 
--- ANTI-AFK
+-- ========== ANTI-AFK ==========
 afkTumbler.onToggle(function(state)
     antiAFKEnabled = state
     setStatus(state and "Anti-AFK ON" or "Anti-AFK OFF", state and Color3.fromRGB(255,200,0) or nil)
@@ -1146,7 +1249,7 @@ afkTumbler.onToggle(function(state)
     end
 end)
 
--- GODMODE
+-- ========== GODMODE ==========
 godTumbler.onToggle(function(state)
     godmodeEnabled = state
     setStatus(state and "Godmode ON - You are immortal!" or "Godmode OFF", state and Color3.fromRGB(255, 0, 200) or nil)
@@ -1158,7 +1261,7 @@ godTumbler.onToggle(function(state)
     end
 end)
 
--- INFINITE JUMP
+-- ========== INFINITE JUMP ==========
 infJumpTumbler.onToggle(function(state)
     infiniteJumpEnabled = state
     setStatus(state and "Infinite Jump ON" or "Infinite Jump OFF", state and Color3.fromRGB(0, 255, 255) or nil)
@@ -1180,20 +1283,20 @@ infJumpTumbler.onToggle(function(state)
     end
 end)
 
--- PLAYER LIST
+-- ========== PLAYER LIST ==========
 plTumbler.onToggle(function(state)
     playerListEnabled = state
     PlayerListGui.Enabled = state
     setStatus(state and "Player List ON" or "Player List OFF", state and Color3.fromRGB(100, 200, 255) or nil)
-    
+
     if state then
         updatePlayerList()
-        
+
         local conn1 = Players.PlayerAdded:Connect(function()
             if playerListEnabled then updatePlayerList() end
         end)
         table.insert(highlightConnections, conn1)
-        
+
         local conn2 = Players.PlayerRemoving:Connect(function()
             if playerListEnabled then updatePlayerList() end
         end)
@@ -1201,49 +1304,55 @@ plTumbler.onToggle(function(state)
     end
 end)
 
--- ANTI-VOID
+-- ========== ANTI-VOID ==========
 avTumbler.onToggle(function(state)
     toggleAntiVoid(state)
     setStatus(state and "Anti-Void ON" or "Anti-Void OFF", state and Color3.fromRGB(255, 200, 100) or nil)
 end)
 
--- FULLBRIGHT
+-- ========== FULLBRIGHT ==========
 fbTumbler.onToggle(function(state)
     toggleFullBright(state)
     setStatus(state and "FullBright ON" or "FullBright OFF", state and Color3.fromRGB(255, 255, 150) or nil)
 end)
 
--- HITBOX
+-- ========== HITBOX ==========
 hbTumbler.onToggle(function(state)
     toggleHitbox(state)
     setStatus(state and "Hitbox ON" or "Hitbox OFF", state and Color3.fromRGB(255, 100, 200) or nil)
 end)
 
--- AUTOCLICKER
+-- ========== AUTOCLICKER ==========
 acTumbler.onToggle(function(state)
     toggleAutoClicker(state)
     setStatus(state and "AutoClicker ON" or "AutoClicker OFF", state and Color3.fromRGB(255, 150, 50) or nil)
 end)
 
--- CHAT SPAM
+-- ========== CHAT SPAM ==========
 csTumbler.onToggle(function(state)
     toggleChatSpam(state)
     setStatus(state and "Chat Spam ON" or "Chat Spam OFF", state and Color3.fromRGB(200, 200, 0) or nil)
 end)
 
--- BHOP
+-- ========== BHOP ==========
 bhopTumbler.onToggle(function(state)
     toggleBhop(state)
     setStatus(state and "Bhop ON" or "Bhop OFF", state and Color3.fromRGB(0, 255, 200) or nil)
 end)
 
--- ANTI-FALL
+-- ========== ANTI-FALL ==========
 afallTumbler.onToggle(function(state)
     toggleAntiFall(state)
     setStatus(state and "Anti-Fall ON" or "Anti-Fall OFF", state and Color3.fromRGB(100, 255, 100) or nil)
 end)
 
--- TP Tool functions
+-- ========== AIMBOT ==========
+aimbotTumbler.onToggle(function(state)
+    aimbotEnabled = state
+    setStatus(state and "Aimbot ON" or "Aimbot OFF", state and Color3.fromRGB(255, 50, 50) or nil)
+end)
+
+-- ========== TP TOOL ==========
 local function createTPTool()
     local tool = Instance.new("Tool")
     tool.Name = "WIA_TP"
@@ -1422,6 +1531,11 @@ RunService.Heartbeat:Connect(function()
     end
 end)
 
+-- Aimbot update (separate from flight)
+RunService.RenderStepped:Connect(function()
+    aimbotLoop()
+end)
+
 -- Cleanup on death
 LocalPlayer.CharacterAdded:Connect(function()
     if flightEnabled then
@@ -1494,22 +1608,22 @@ LocalPlayer.CharacterAdded:Connect(function()
         task.wait(0.5)
         updateWallhack()
     end
-    
+
     if fullBrightEnabled then
         task.wait(0.3)
         toggleFullBright(true)
     end
-    
+
     if fovEnabled then
         task.wait(0.3)
         Camera.FieldOfView = fovValue
     end
-    
+
     if hitboxEnabled then
         task.wait(0.3)
         toggleHitbox(true)
     end
-    
+
     if antiFallEnabled then
         task.wait(0.3)
         toggleAntiFall(true)
