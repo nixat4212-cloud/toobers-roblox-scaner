@@ -1697,213 +1697,162 @@ end)
 task.wait(0.1)
 updateCanvas()
 
--- ========== FAKE KNIFE WITH ANIMATIONS (РАБОЧИЙ ВИЗУАЛ) ==========
--- Добавить в основной код WIA HUB v6
+-- ========== FAKE KNIFE (VISUAL & ANIMATED) ==========
+-- Готовый модуль для WIA HUB v6
 
 local fakeKnifeEnabled = false
-local selectedKnife = "Fake Knife"
 local fakeKnifeTool = nil
-local fakeKnifeHandle = nil
-local knifeDisplay = nil
-local knifeConnection = nil
-local animConnections = {}
+local animTrack = nil
+local isAttacking = false
 
--- Создание фейк-ножа с анимациями
-local function createFakeKnifeWithAnim()
-    local lp = game.Players.LocalPlayer
-    local char = lp.Character
-    if not char then return end
-    
-    -- Удаляем старый
-    if fakeKnifeTool then
-        fakeKnifeTool:Destroy()
-        fakeKnifeTool = nil
-    end
-    if knifeDisplay then
-        knifeDisplay:Destroy()
-        knifeDisplay = nil
-    end
-    if knifeConnection then
-        knifeConnection:Disconnect()
-        knifeConnection = nil
-    end
-    for _, conn in pairs(animConnections) do
-        conn:Disconnect()
-    end
-    animConnections = {}
-
-    -- Удаляем из рюкзака
-    for _, item in pairs(lp.Backpack:GetChildren()) do
-        if item:IsA("Tool") and item.Name == "Fake Knife" then
-            item:Destroy()
-        end
-    end
-
-    -- Анимации
-    local animation1 = Instance.new("Animation")
-    animation1.AnimationId = "rbxassetid://2467567750"
-    local animation2 = Instance.new("Animation")
-    animation2.AnimationId = "rbxassetid://1957890538"
-    local anims = {animation1, animation2}
-
-    -- Создаём инструмент
-    local tool = Instance.new("Tool")
-    tool.Name = "Fake Knife"
-    tool.Grip = CFrame.new(0, -1.16999984, 0.0699999481, 1, 0, 0, 0, 1, 0, 0, 0, 1)
-    tool.GripForward = Vector3.new(-0, -0, -1)
-    tool.GripPos = Vector3.new(0, -1.17, 0.0699999)
-    tool.GripRight = Vector3.new(1, 0, 0)
-    tool.GripUp = Vector3.new(0, 1, 0)
-    tool.Parent = lp.Backpack
-    fakeKnifeTool = tool
-
-    -- Handle (невидимый)
-    local handle = Instance.new("Part")
-    handle.Size = Vector3.new(0.310638815, 3.42103457, 1.08775854)
-    handle.Name = "Handle"
-    handle.Transparency = 1
-    handle.Anchored = false
-    handle.CanCollide = false
-    handle.Parent = tool
-    fakeKnifeHandle = handle
-
-    -- Создаём визуальный нож (KnifeDisplay)
-    local knife = Instance.new("Part")
-    knife.Name = "KnifeDisplay"
-    knife.Size = Vector3.new(0.5, 0.5, 2.5)
-    knife.BrickColor = BrickColor.new("Bright violet")
-    knife.Material = Enum.Material.Neon
-    knife.Transparency = 0.1
-    knife.Anchored = false
-    knife.CanCollide = false
-    knife.Parent = char
-    knifeDisplay = knife
-
-    -- Прикрепляем нож к Handle через HingeConstraint
-    local aa = Instance.new("Attachment", handle)
-    local ba = Instance.new("Attachment", knife)
-    local hinge = Instance.new("HingeConstraint", knife)
-    hinge.Attachment0 = aa
-    hinge.Attachment1 = ba
-    hinge.LimitsEnabled = true
-    hinge.LowerAngle = 0
-    hinge.Restitution = 0
-    hinge.UpperAngle = 0
-
-    -- Удаляем старый Weld на UpperTorso (для корректного отображения)
-    local upperTorso = char:FindFirstChild("UpperTorso")
-    if upperTorso then
-        local oldWeld = upperTorso:FindFirstChild("Weld")
-        if oldWeld then
-            oldWeld:Destroy()
-        end
-    end
-
-    -- Клик для анимации
-    local mouse = lp:GetMouse()
-    local clickConn = mouse.Button1Down:Connect(function()
-        if tool and tool.Parent == char then
-            local humanoid = char:FindFirstChild("Humanoid")
-            if humanoid then
-                local an = humanoid:LoadAnimation(anims[math.random(1, 2)])
-                an:Play()
-            end
-        end
-    end)
-    table.insert(animConnections, clickConn)
-
-    -- Обновление позиции ножа
-    knifeConnection = game:GetService("RunService").Heartbeat:Connect(function()
-        setsimulationradius(1/0, 1/0)
-        if tool and tool.Parent == char then
-            if knifeDisplay and handle then
-                knifeDisplay.CFrame = handle.CFrame
-            end
-        else
-            if knifeDisplay and upperTorso then
-                knifeDisplay.CFrame = upperTorso.CFrame
-            end
-        end
-    end)
-
-    fakeKnifeTool = tool
-    setStatus("✅ Fake Knife with animations created!", Color3.fromRGB(0, 255, 150))
-    return tool
-end
-
--- Функция удаления
+-- Функция очистки старого ножа
 local function removeFakeKnife()
     if fakeKnifeTool then
         fakeKnifeTool:Destroy()
         fakeKnifeTool = nil
     end
-    if knifeDisplay then
-        knifeDisplay:Destroy()
-        knifeDisplay = nil
+    if animTrack then
+        animTrack:Stop()
+        animTrack = nil
     end
-    if knifeConnection then
-        knifeConnection:Disconnect()
-        knifeConnection = nil
-    end
-    for _, conn in pairs(animConnections) do
-        conn:Disconnect()
-    end
-    animConnections = {}
-    for _, item in pairs(game.Players.LocalPlayer.Backpack:GetChildren()) do
-        if item:IsA("Tool") and item.Name == "Fake Knife" then
-            item:Destroy()
+    
+    local lp = game:GetService("Players").LocalPlayer
+    if lp and lp:FindFirstChild("Backpack") then
+        for _, item in pairs(lp.Backpack:GetChildren()) do
+            if item:IsA("Tool") and item.Name == "Fake Knife" then
+                item:Destroy()
+            end
         end
     end
 end
 
--- Функция спавна
-local function spawnFakeKnifeWithAnim()
-    if not fakeKnifeEnabled then
-        setStatus("Enable Fake Knife first!", Color3.fromRGB(255, 100, 100))
-        return
+-- Функция создания ножа
+local function createFakeKnife()
+    local lp = game:GetService("Players").LocalPlayer
+    local char = lp.Character
+    if not char then return end
+
+    -- Очищаем прошлый нож, если был
+    removeFakeKnife()
+
+    -- 1. Создаем Tool
+    local tool = Instance.new("Tool")
+    tool.Name = "Fake Knife"
+    tool.Grip = CFrame.new(0, -1, 0.2) * CFrame.Angles(0, 0, 0)
+    tool.CanBeDropped = false
+
+    -- 2. Handle (Рукоятка)
+    local handle = Instance.new("Part")
+    handle.Name = "Handle"
+    handle.Size = Vector3.new(0.3, 1.2, 0.4)
+    handle.BrickColor = BrickColor.new("Bright violet")
+    handle.Material = Enum.Material.Neon
+    handle.CanCollide = false
+    handle.Parent = tool
+
+    -- 3. Blade (Лезвие)
+    local blade = Instance.new("Part")
+    blade.Name = "Blade"
+    blade.Size = Vector3.new(0.1, 2.2, 0.5)
+    blade.BrickColor = BrickColor.new("White")
+    blade.Material = Enum.Material.Neon
+    blade.CanCollide = false
+    blade.Parent = tool
+
+    -- Скрепляем Handle и Blade
+    local weld = Instance.new("Weld")
+    weld.Part0 = handle
+    weld.Part1 = blade
+    weld.C0 = CFrame.new(0, 1.3, 0)
+    weld.Parent = blade
+
+    -- 4. Эффекты (Свечение)
+    local light = Instance.new("PointLight")
+    light.Color = Color3.fromRGB(180, 0, 255)
+    light.Range = 10
+    light.Brightness = 3
+    light.Parent = handle
+
+    -- 5. Подготовка анимаций взмаха
+    local animIds = {
+        "rbxassetid://2467567750",
+        "rbxassetid://1957890538"
+    }
+
+    -- Атака при клике
+    tool.Activated:Connect(function()
+        if isAttacking then return end
+        
+        local humanoid = char:FindFirstChildOfClass("Humanoid")
+        if humanoid then
+            isAttacking = true
+            
+            local anim = Instance.new("Animation")
+            anim.AnimationId = animIds[math.random(1, #animIds)]
+            
+            animTrack = humanoid:LoadAnimation(anim)
+            animTrack:Play()
+            
+            task.wait(0.5)
+            isAttacking = false
+        end
+    end)
+
+    -- Помещаем в рюкзак
+    tool.Parent = lp.Backpack
+    fakeKnifeTool = tool
+    
+    if setStatus then
+        setStatus("✅ Fake Knife spawned!", Color3.fromRGB(0, 255, 150))
     end
-    createFakeKnifeWithAnim()
 end
 
 -- ========== GUI ЭЛЕМЕНТЫ ==========
--- Тумблер (ROW 19)
-local fkAnimTumbler = createTumbler("Fake Knife", 10, 950, Container, false)
+local fkTumbler = createTumbler("Fake Knife", 10, 950, Container, false)
 
--- Контейнер для кнопки
-local FKAnimContainer = Instance.new("Frame")
-FKAnimContainer.Size = UDim2.new(0, 160, 0, 30)
-FKAnimContainer.Position = UDim2.new(0, 10, 0, 985)
-FKAnimContainer.BackgroundTransparency = 1
-FKAnimContainer.Parent = Container
+local FKContainer = Instance.new("Frame")
+FKContainer.Size = UDim2.new(0, 160, 0, 35)
+FKContainer.Position = UDim2.new(0, 10, 0, 985)
+FKContainer.BackgroundTransparency = 1
+FKContainer.Parent = Container
 
-local FKAnimBtn = Instance.new("TextButton")
-FKAnimBtn.Size = UDim2.new(0, 100, 0, 25)
-FKAnimBtn.Position = UDim2.new(0, 30, 0, 3)
-FKAnimBtn.Text = "Spawn Knife"
-FKAnimBtn.TextColor3 = Color3.fromRGB(255,255,255)
-FKAnimBtn.BackgroundColor3 = Color3.fromRGB(180, 0, 255)
-FKAnimBtn.BorderSizePixel = 0
-FKAnimBtn.Font = Enum.Font.Gotham
-FKAnimBtn.Parent = FKAnimContainer
+local FKBtn = Instance.new("TextButton")
+FKBtn.Size = UDim2.new(0, 140, 0, 28)
+FKBtn.Position = UDim2.new(0, 10, 0, 3)
+FKBtn.Text = "Spawn Knife"
+FKBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+FKBtn.BackgroundColor3 = Color3.fromRGB(180, 0, 255)
+FKBtn.BorderSizePixel = 0
+FKBtn.Font = Enum.Font.Gotham
+FKBtn.Parent = FKContainer
 
 -- ========== ОБРАБОТЧИКИ ==========
-fkAnimTumbler.onToggle(function(state)
+fkTumbler.onToggle(function(state)
     fakeKnifeEnabled = state
-    setStatus(state and "Fake Knife ON" or "Fake Knife OFF", state and Color3.fromRGB(255, 150, 0) or nil)
+    if setStatus then
+        setStatus(state and "Fake Knife ON" or "Fake Knife OFF", state and Color3.fromRGB(255, 150, 0) or nil)
+    end
     
     if not state then
         removeFakeKnife()
     end
 end)
 
-FKAnimBtn.MouseButton1Click:Connect(function()
-    spawnFakeKnifeWithAnim()
+FKBtn.MouseButton1Click:Connect(function()
+    if not fakeKnifeEnabled then
+        if setStatus then
+            setStatus("Enable Fake Knife first!", Color3.fromRGB(255, 100, 100))
+        end
+        return
+    end
+    createFakeKnife()
 end)
 
--- Автоспавн при респавне
-LocalPlayer.CharacterAdded:Connect(function()
+-- Авто-спавн при возрождении персонажа
+local lp = game:GetService("Players").LocalPlayer
+lp.CharacterAdded:Connect(function()
     if fakeKnifeEnabled then
-        task.wait(0.5)
-        spawnFakeKnifeWithAnim()
+        task.wait(1)
+        createFakeKnife()
     end
 end)
