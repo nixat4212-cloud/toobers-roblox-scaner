@@ -1697,3 +1697,107 @@ end)
 task.wait(0.1)
 updateCanvas()
 
+-- ========== FLING (отбрасывание игроков) ==========
+-- Добавить в основной код после всех переменных
+
+local flingEnabled = false
+local flingPower = 50
+local flingConnection = nil
+local flingCooldown = 0
+
+-- Функция флинга
+local function toggleFling(state)
+    flingEnabled = state
+    setStatus(state and "Fling ON" or "Fling OFF", state and Color3.fromRGB(255, 100, 0) or nil)
+    
+    if state then
+        if flingConnection then flingConnection:Disconnect() end
+        flingConnection = RunService.Heartbeat:Connect(function()
+            if not flingEnabled then return end
+            
+            local char = LocalPlayer.Character
+            if not char then return end
+            
+            local root = char:FindFirstChild("HumanoidRootPart")
+            if not root then return end
+            
+            -- Проверяем игроков рядом
+            for _, plr in pairs(Players:GetPlayers()) do
+                if plr ~= LocalPlayer and plr.Character then
+                    local targetRoot = plr.Character:FindFirstChild("HumanoidRootPart")
+                    if targetRoot then
+                        local dist = (targetRoot.Position - root.Position).Magnitude
+                        if dist < 10 then -- Радиус 10 студий
+                            -- Отбрасываем игрока
+                            local direction = (targetRoot.Position - root.Position).Unit
+                            local velocity = direction * flingPower + Vector3.new(0, flingPower * 0.5, 0)
+                            
+                            -- Применяем Velocity
+                            local bv = targetRoot:FindFirstChild("FlingVelocity")
+                            if not bv then
+                                bv = Instance.new("BodyVelocity")
+                                bv.Name = "FlingVelocity"
+                                bv.MaxForce = Vector3.new(1e6, 1e6, 1e6)
+                                bv.Parent = targetRoot
+                            end
+                            bv.Velocity = velocity
+                            
+                            -- Добавляем эффект
+                            local part = Instance.new("Part")
+                            part.Size = Vector3.new(1, 1, 1)
+                            part.Position = targetRoot.Position
+                            part.Anchored = true
+                            part.CanCollide = false
+                            part.BrickColor = BrickColor.new("Bright violet")
+                            part.Material = Enum.Material.Neon
+                            part.Transparency = 0.5
+                            part.Parent = workspace
+                            game:GetService("Debris"):AddItem(part, 0.3)
+                            
+                            -- Удаляем Velocity через 0.5 сек
+                            task.wait(0.5)
+                            if bv and bv.Parent then
+                                bv:Destroy()
+                            end
+                        end
+                    end
+                end
+            end
+        end)
+    else
+        if flingConnection then
+            flingConnection:Disconnect()
+            flingConnection = nil
+        end
+        -- Очищаем все Velocity
+        for _, plr in pairs(Players:GetPlayers()) do
+            if plr.Character then
+                local bv = plr.Character:FindFirstChild("FlingVelocity")
+                if bv then
+                    bv:Destroy()
+                end
+            end
+        end
+    end
+end
+
+-- ========== GUI ЭЛЕМЕНТЫ ==========
+-- Тумблер Fling (ROW 19)
+local flingTumbler = createTumbler("Fling", 10, 950, Container, false)
+
+-- Слайдер силы флинга (ROW 20)
+local flingSlider = createSlider("Fling Power", 10, 985, Container, 10, 200, 50, function(val)
+    flingPower = val
+end)
+
+-- Сдвигаем остальные элементы ниже
+-- TP Controls (был 985 -> становится 1020)
+TPControls.Position = UDim2.new(0, 10, 0, 1020)
+
+-- Status bar (был 1020 -> становится 1055)
+StatusBar.Position = UDim2.new(0, 10, 0, 1055)
+
+-- ========== ОБРАБОТЧИК ==========
+flingTumbler.onToggle(function(state)
+    toggleFling(state)
+end)
