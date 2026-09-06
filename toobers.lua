@@ -1697,56 +1697,75 @@ end)
 task.wait(0.1)
 updateCanvas()
 
--- ========== REAL MM2 KNIFE SPAWNER ==========
--- Добавить в основной код (после всех переменных)
+-- ========== MM2 KNIFE CLONER (REAL VISUAL) ==========
+-- Добавить в основной код WIA HUB v6
 
-local knifeSpawnEnabled = false
-local selectedKnife = "Knife"
-local knifeTool = nil
+local knifeClonerEnabled = false
+local selectedKnife = "Fang"
+local clonedKnife = nil
 
--- Список реальных ножей из MM2 (названия моделей)
-local knifeList = {
-    "Knife",
-    "NightBlade",
-    "Shadow",
-    "Frost",
-    "Venom",
-    "Ghost",
-    "Diamond",
-    "Gold",
-    "Plasma",
-    "Void",
-    "Crystal",
-    "Dark",
-    "Light",
-    "Ice",
-    "Fire",
-    "Soul",
-    "Spirit",
-    "Phantom",
-    "Reaper",
+-- Список реальных ножей MM2 (из ReplicatedStorage)
+local mm2Knives = {
+    "Fang",
+    "Flames", 
+    "Skool",
+    "Missing",
+    "Chroma Boneblade",
+    "Chroma Gemstone",
+    "Chroma Darkbringer",
+    "Chroma Lightbringer",
+    "Chroma Luger",
+    "Chroma Saw",
+    "Chroma Seer",
+    "Chroma Shark",
+    "Chroma Slasher",
+    "Chroma Tides",
+    "Darkbringer",
+    "Lightbringer",
+    "Luger",
     "Saw",
-    "Axe"
+    "Seer",
+    "Shark",
+    "Slasher",
+    "Tides",
+    "Boneblade",
+    "Gemstone",
+    "Icebreaker",
+    "Icewing",
+    "Logchopper",
+    "Pixel",
+    "Prismatic",
+    "Snowflake",
+    "Spider",
+    "Vampire"
 }
 
--- Функция поиска реального ножа в игре
-local function findKnifeModel(knifeName)
-    -- Ищем в ReplicatedStorage
-    for _, child in pairs(ReplicatedStorage:GetChildren()) do
+-- ПОИСК РЕАЛЬНОЙ МОДЕЛИ НОЖА В ИГРЕ
+local function findRealKnife(knifeName)
+    -- Проверяем ReplicatedStorage (там обычно все оружия)
+    local storage = game:GetService("ReplicatedStorage")
+    for _, child in pairs(storage:GetChildren()) do
         if child:IsA("Tool") and child.Name:lower():find(knifeName:lower()) then
             return child
         end
     end
     
-    -- Ищем в Workspace
+    -- Проверяем Workspace
     for _, child in pairs(workspace:GetChildren()) do
         if child:IsA("Tool") and child.Name:lower():find(knifeName:lower()) then
             return child
         end
     end
     
-    -- Ищем в Lighting
+    -- Проверяем Lighting
     for _, child in pairs(game:GetService("Lighting"):GetChildren()) do
+        if child:IsA("Tool") and child.Name:lower():find(knifeName:lower()) then
+            return child
+        end
+    end
+    
+    -- Проверяем ServerStorage
+    for _, child in pairs(game:GetService("ServerStorage"):GetChildren()) do
         if child:IsA("Tool") and child.Name:lower():find(knifeName:lower()) then
             return child
         end
@@ -1755,153 +1774,139 @@ local function findKnifeModel(knifeName)
     return nil
 end
 
--- Создание реального ножа
-local function spawnRealKnife(knifeName)
-    -- Удаляем старый
-    if knifeTool then
-        knifeTool:Destroy()
-        knifeTool = nil
+-- КЛОНИРОВАНИЕ НОЖА
+local function cloneKnife(knifeName)
+    -- Удаляем старый клон
+    if clonedKnife then
+        clonedKnife:Destroy()
+        clonedKnife = nil
     end
-
+    
     -- Удаляем из рюкзака
     for _, item in pairs(LocalPlayer.Backpack:GetChildren()) do
-        if item:IsA("Tool") and item.Name:lower():find(knifeName:lower()) then
+        if item:IsA("Tool") and (item.Name == knifeName or item:FindFirstChild("ClonedKnife")) then
             item:Destroy()
         end
     end
-
-    -- Пытаемся найти реальную модель ножа
-    local realKnife = findKnifeModel(knifeName)
+    
+    -- Ищем реальную модель
+    local realKnife = findRealKnife(knifeName)
     
     if realKnife then
-        -- Клонируем реальный нож
-        knifeTool = realKnife:Clone()
-        knifeTool.Parent = LocalPlayer.Backpack
-        setStatus("[MM2] " .. knifeName .. " spawned (REAL)!", Color3.fromRGB(0, 255, 150))
+        -- КЛОНИРУЕМ реальный нож
+        clonedKnife = realKnife:Clone()
+        clonedKnife.Name = knifeName
+        clonedKnife.Parent = LocalPlayer.Backpack
+        
+        -- Добавляем метку, что это клон
+        local tag = Instance.new("BoolValue")
+        tag.Name = "ClonedKnife"
+        tag.Parent = clonedKnife
+        
+        -- Автоматически экипируем
+        task.wait(0.1)
+        local char = LocalPlayer.Character
+        if char then
+            local hum = char:FindFirstChild("Humanoid")
+            if hum then
+                hum:EquipTool(clonedKnife)
+            end
+        end
+        
+        setStatus("✅ " .. knifeName .. " cloned successfully!", Color3.fromRGB(0, 255, 150))
         return true
     else
-        -- Если модель не найдена — создаём простой нож
-        setStatus("[MM2] " .. knifeName .. " not found! Creating basic knife.", Color3.fromRGB(255, 200, 0))
-        
-        local tool = Instance.new("Tool")
-        tool.Name = knifeName
-        tool.RequiresHandle = true
-        tool.CanBeDropped = false
-        
-        local handle = Instance.new("Part")
-        handle.Name = "Handle"
-        handle.Size = Vector3.new(0.4, 0.4, 0.8)
-        handle.BrickColor = BrickColor.new("Bright violet")
-        handle.Material = Enum.Material.Neon
-        handle.Parent = tool
-        
-        local blade = Instance.new("Part")
-        blade.Name = "Blade"
-        blade.Size = Vector3.new(0.1, 0.1, 2.5)
-        blade.Position = Vector3.new(0, 0, 1.2)
-        blade.BrickColor = BrickColor.new("White")
-        blade.Material = Enum.Material.Neon
-        blade.Parent = tool
-        
-        local weld = Instance.new("Weld")
-        weld.Part0 = handle
-        weld.Part1 = blade
-        weld.C0 = CFrame.new(0, 0, 1.2)
-        weld.Parent = blade
-        
-        knifeTool = tool
-        knifeTool.Parent = LocalPlayer.Backpack
-        return true
+        setStatus("❌ " .. knifeName .. " not found in game!", Color3.fromRGB(255, 100, 100))
+        return false
     end
 end
 
 -- ========== GUI ЭЛЕМЕНТЫ ==========
--- Тумблер (вставить в ROW)
-local knifeTumbler = createTumbler("Knife Spawn", 10, 950, Container, false)
+-- Тумблер (ROW 19)
+local cloneTumbler = createTumbler("Knife Cloner", 10, 950, Container, false)
 
 -- Контейнер
-local KnifeContainer = Instance.new("Frame")
-KnifeContainer.Size = UDim2.new(0, 160, 0, 60)
-KnifeContainer.Position = UDim2.new(0, 10, 0, 985)
-KnifeContainer.BackgroundTransparency = 1
-KnifeContainer.Parent = Container
+local CloneContainer = Instance.new("Frame")
+CloneContainer.Size = UDim2.new(0, 160, 0, 60)
+CloneContainer.Position = UDim2.new(0, 10, 0, 985)
+CloneContainer.BackgroundTransparency = 1
+CloneContainer.Parent = Container
 
-local KnifeLabel = Instance.new("TextLabel")
-KnifeLabel.Size = UDim2.new(0, 60, 0, 25)
-KnifeLabel.Position = UDim2.new(0, 0, 0, 0)
-KnifeLabel.Text = "Knife:"
-KnifeLabel.TextColor3 = Color3.fromRGB(255,255,255)
-KnifeLabel.TextScaled = true
-KnifeLabel.BackgroundTransparency = 1
-KnifeLabel.Font = Enum.Font.Gotham
-KnifeLabel.TextXAlignment = Enum.TextXAlignment.Left
-KnifeLabel.Parent = KnifeContainer
+local CloneLabel = Instance.new("TextLabel")
+CloneLabel.Size = UDim2.new(0, 60, 0, 25)
+CloneLabel.Position = UDim2.new(0, 0, 0, 0)
+CloneLabel.Text = "Knife:"
+CloneLabel.TextColor3 = Color3.fromRGB(255,255,255)
+CloneLabel.TextScaled = true
+CloneLabel.BackgroundTransparency = 1
+CloneLabel.Font = Enum.Font.Gotham
+CloneLabel.TextXAlignment = Enum.TextXAlignment.Left
+CloneLabel.Parent = CloneContainer
 
-local KnifeSelect = Instance.new("TextBox")
-KnifeSelect.Size = UDim2.new(0, 90, 0, 25)
-KnifeSelect.Position = UDim2.new(0, 65, 0, 0)
-KnifeSelect.Text = "Knife"
-KnifeSelect.TextColor3 = Color3.fromRGB(255,255,255)
-KnifeSelect.BackgroundColor3 = Color3.fromRGB(40,40,55)
-KnifeSelect.BorderSizePixel = 0
-KnifeSelect.Font = Enum.Font.Gotham
-KnifeSelect.Parent = KnifeContainer
+local CloneSelect = Instance.new("TextBox")
+CloneSelect.Size = UDim2.new(0, 90, 0, 25)
+CloneSelect.Position = UDim2.new(0, 65, 0, 0)
+CloneSelect.Text = "Fang"
+CloneSelect.TextColor3 = Color3.fromRGB(255,255,255)
+CloneSelect.BackgroundColor3 = Color3.fromRGB(40,40,55)
+CloneSelect.BorderSizePixel = 0
+CloneSelect.Font = Enum.Font.Gotham
+CloneSelect.Parent = CloneContainer
 
-local SpawnKnifeBtn = Instance.new("TextButton")
-SpawnKnifeBtn.Size = UDim2.new(0, 90, 0, 25)
-SpawnKnifeBtn.Position = UDim2.new(0, 65, 0, 30)
-SpawnKnifeBtn.Text = "Spawn"
-SpawnKnifeBtn.TextColor3 = Color3.fromRGB(255,255,255)
-SpawnKnifeBtn.BackgroundColor3 = Color3.fromRGB(180, 0, 255)
-SpawnKnifeBtn.BorderSizePixel = 0
-SpawnKnifeBtn.Font = Enum.Font.Gotham
-SpawnKnifeBtn.Parent = KnifeContainer
+local CloneBtn = Instance.new("TextButton")
+CloneBtn.Size = UDim2.new(0, 90, 0, 25)
+CloneBtn.Position = UDim2.new(0, 65, 0, 30)
+CloneBtn.Text = "Clone"
+CloneBtn.TextColor3 = Color3.fromRGB(255,255,255)
+CloneBtn.BackgroundColor3 = Color3.fromRGB(180, 0, 255)
+CloneBtn.BorderSizePixel = 0
+CloneBtn.Font = Enum.Font.Gotham
+CloneBtn.Parent = CloneContainer
 
 -- ========== ОБРАБОТЧИКИ ==========
-knifeTumbler.onToggle(function(state)
-    knifeSpawnEnabled = state
-    setStatus(state and "Knife Spawn ON" or "Knife Spawn OFF", state and Color3.fromRGB(255, 150, 0) or nil)
+cloneTumbler.onToggle(function(state)
+    knifeClonerEnabled = state
+    setStatus(state and "Knife Cloner ON" or "Knife Cloner OFF", state and Color3.fromRGB(255, 150, 0) or nil)
     
     if not state then
-        if knifeTool then
-            knifeTool:Destroy()
-            knifeTool = nil
+        if clonedKnife then
+            clonedKnife:Destroy()
+            clonedKnife = nil
         end
         for _, item in pairs(LocalPlayer.Backpack:GetChildren()) do
-            if item:IsA("Tool") and item.Name:lower():find(selectedKnife:lower()) then
+            if item:IsA("Tool") and item:FindFirstChild("ClonedKnife") then
                 item:Destroy()
             end
         end
     end
 end)
 
-KnifeSelect.FocusLost:Connect(function()
-    local input = KnifeSelect.Text
-    for _, knife in pairs(knifeList) do
-        if input:lower() == knife:lower() then
-            selectedKnife = knife
-            KnifeSelect.Text = knife
-            setStatus("Selected: " .. knife)
-            return
-        end
-    end
+CloneSelect.FocusLost:Connect(function()
+    local input = CloneSelect.Text
     selectedKnife = input
-    KnifeSelect.Text = input
     setStatus("Selected: " .. input)
 end)
 
-SpawnKnifeBtn.MouseButton1Click:Connect(function()
-    if not knifeSpawnEnabled then
-        setStatus("Enable Knife Spawn first!", Color3.fromRGB(255, 100, 100))
+CloneBtn.MouseButton1Click:Connect(function()
+    if not knifeClonerEnabled then
+        setStatus("Enable Knife Cloner first!", Color3.fromRGB(255, 100, 100))
         return
     end
-    spawnRealKnife(selectedKnife)
+    cloneKnife(selectedKnife)
 end)
 
--- Автоспавн при респавне
+-- Авто-клон при респавне
 LocalPlayer.CharacterAdded:Connect(function()
-    if knifeSpawnEnabled then
+    if knifeClonerEnabled then
         task.wait(0.5)
-        spawnRealKnife(selectedKnife)
+        cloneKnife(selectedKnife)
     end
 end)
+
+-- Вывод списка доступных ножей в консоль
+print("=== MM2 KNIFE CLONER ===")
+print("Available knives (try these):")
+for _, name in pairs(mm2Knives) do
+    print(" - " .. name)
+end
+print("========================")
