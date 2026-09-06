@@ -1,1 +1,1 @@
-ya big naxuy
+ya bog naxuy
